@@ -89,11 +89,13 @@ pub struct NullLit {
 pub struct Path {
     _dollar: token::Dollar,
     children: Vec<Operator>,
+    tilde: Option<token::Tilde>,
 }
 
 pub struct SubPath {
     kind: PathKind,
     children: Vec<Operator>,
+    tilde: Option<token::Tilde>,
 }
 
 pub enum PathKind {

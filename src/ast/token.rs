@@ -72,4 +72,5 @@ simple_tokens! {
         RightSlash('/');
         SingleQuote('\'');
         Star('*');
+        Tilde('~');
     }

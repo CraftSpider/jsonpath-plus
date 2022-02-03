@@ -9,6 +9,9 @@ impl Path {
         for op in &self.children {
             op.eval(ctx)
         }
+        if self.tilde.is_some() {
+            todo!()
+        }
     }
 }
 
@@ -151,7 +154,7 @@ impl BracketLit {
 }
 
 impl SubPath {
-    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, a: &'a Value) -> Option<&'a Value> {
+    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, a: &'a Value) -> Option<Cow<'a, Value>> {
         let relative = match self.kind {
             PathKind::Root(_) => false,
             PathKind::Relative(_) => true,
@@ -172,7 +175,13 @@ impl SubPath {
         if matched.len() != 1 {
             None
         } else {
-            Some(matched[0])
+            let matched = if self.tilde.is_some() {
+                Cow::Owned(ctx.idx_of(matched[0])?.into())
+            } else {
+                Cow::Borrowed(matched[0])
+            };
+
+            Some(matched)
         }
     }
 
@@ -195,12 +204,22 @@ impl SubPath {
             }
             let matched = new_ctx.into_matched();
 
+            let matched = if self.tilde.is_some() {
+                matched.into_iter()
+                    .map(|a| Cow::Owned(ctx.idx_of(a).unwrap().into()))
+                    .collect::<Vec<_>>()
+            } else {
+                matched.into_iter()
+                    .map(Cow::Borrowed)
+                    .collect()
+            };
+
             matched
                 .into_iter()
                 .flat_map(|mat| {
                     match a {
                         Value::Array(v) => {
-                            let idx = match mat {
+                            let idx = match &*mat {
                                 Value::Number(n) => Some(idx_handle(n.as_i64().unwrap(), v)),
                                 _ => None,
                             };
@@ -210,7 +229,7 @@ impl SubPath {
                                 .unwrap_or_default()
                         }
                         Value::Object(m) => {
-                            let idx = match mat {
+                            let idx = match &*mat {
                                 Value::String(s) => Some(s.to_string()),
                                 Value::Number(n) => Some(n.to_string()),
                                 _ => None,
@@ -354,7 +373,6 @@ impl FilterExpr {
             }
             FilterExpr::Path(path) => {
                 path.eval_expr(ctx, val)
-                    .map(Cow::Borrowed)
             }
             FilterExpr::Lit(lit) => {
                 Some(Cow::Owned(match lit {

@@ -41,6 +41,15 @@ impl Idx {
     }
 }
 
+impl From<Idx> for Value {
+    fn from(idx: Idx) -> Self {
+        match idx {
+            Idx::Int(i) => Value::from(i),
+            Idx::Name(str) => Value::from(str),
+        }
+    }
+}
+
 pub(crate) struct EvalCtx<'a> {
     root: &'a Value,
     cur_matched: Vec<&'a Value>,
@@ -70,6 +79,20 @@ impl<'a> EvalCtx<'a> {
 
     pub fn all_parents(&self) -> &HashMap<RefKey<'a, Value>, &'a Value> {
         &self.parents
+    }
+
+    pub fn idx_of(&self, val: &'a Value) -> Option<Idx> {
+        let parent = self.parent_of(val)?;
+        match parent {
+            Value::Array(v) => v.iter()
+                .enumerate()
+                .find(|&(_, p)| std::ptr::eq(p, val))
+                .map(|(idx, _)| Idx::Int(idx)),
+            Value::Object(m) => m.iter()
+                .find(|&(_, p)| std::ptr::eq(p, val))
+                .map(|(idx, _)| Idx::Name(idx.to_string())),
+            _ => None
+        }
     }
 
     pub fn parent_of(&self, val: &'a Value) -> Option<&'a Value> {

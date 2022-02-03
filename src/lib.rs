@@ -103,7 +103,7 @@ impl JsonPath {
 
         for p in paths {
             let delete_on = resolve_path(&p[..p.len() - 1], &mut out);
-            let last_idx = p.last().unwrap();
+            let last_idx = p.last().expect("Idx should match found item");
             match delete_on {
                 Value::Array(v) => {
                     v.remove(last_idx.as_int());

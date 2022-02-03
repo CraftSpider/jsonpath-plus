@@ -110,8 +110,9 @@ impl Path {
     pub(crate) fn parser() -> impl Parser<Input, Path, Error=Error> {
         token::Dollar::parser()
             .then(Operator::parser().repeated())
+            .then(token::Tilde::parser().or_not())
             .then_ignore(end())
-            .map(|(dollar, children)| Path { _dollar: dollar, children })
+            .map(|((dollar, children), tilde)| Path { _dollar: dollar, children, tilde })
     }
 }
 
@@ -119,7 +120,8 @@ impl SubPath {
     fn parser(operator: impl Parser<Input, Operator, Error = Error>) -> impl Parser<Input, SubPath, Error = Error> {
         PathKind::parser()
             .then(operator.repeated())
-            .map(|(kind, children)| SubPath { kind, children })
+            .then(token::Tilde::parser().or_not())
+            .map(|((kind, children), tilde)| SubPath { kind, children, tilde })
     }
 }
 
