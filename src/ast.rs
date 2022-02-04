@@ -106,7 +106,7 @@ pub enum PathKind {
 pub enum Operator {
     Dot(token::Dot, DotIdent),
     Bracket(token::Bracket, BracketInner),
-    Recursive(token::DotDot, RecursiveOp),
+    Recursive(token::DotDot, Option<RecursiveOp>),
 }
 
 pub enum RecursiveOp {

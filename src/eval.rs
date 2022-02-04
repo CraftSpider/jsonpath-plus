@@ -123,19 +123,7 @@ impl<'a> EvalCtx<'a> {
                 let mut cur = CurRef(a);
                 let mut out = Vec::new();
                 while let Some(p) = self.parent_of(cur.0) {
-                    let idx = match p {
-                        Value::Array(v) => v.iter()
-                            .enumerate()
-                            .find(|&(_, val)| std::ptr::eq(val, cur.0))
-                            .map(|(idx, _)| Idx::Int(idx))
-                            .unwrap(),
-                        Value::Object(m) => m.iter()
-                            .find(|&(_, val)| std::ptr::eq(val, cur.0))
-                            .map(|(idx, _)| Idx::Name(idx.clone()))
-                            .unwrap(),
-                        _ => unreachable!()
-                    };
-                    out.push(idx);
+                    out.push(self.idx_of(cur.0).unwrap());
                     cur = CurRef(p);
                 }
                 out

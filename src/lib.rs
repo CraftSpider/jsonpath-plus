@@ -183,26 +183,4 @@ impl JsonPath {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_dots() {
-        JsonPath::compile("$.a")
-            .unwrap()
-            .find_str(r#"
-            {"a": 1}
-            "#)
-            .unwrap();
-    }
-
-    #[test]
-    fn test_delete() {
-        dbg!(JsonPath::compile("$.a")
-            .unwrap()
-            .delete_str(r#"
-            {"a": 1, "b": 2}
-            "#)
-            .unwrap());
-    }
-}
+mod tests;

@@ -4,6 +4,19 @@ use crate::eval::EvalCtx;
 
 use serde_json::Value;
 
+fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
+    collect.push(a);
+    match a {
+        Value::Array(v) => v
+            .iter()
+            .for_each(|a| flatten_recur(collect, a)),
+        Value::Object(m) => m
+            .values()
+            .for_each(|a| flatten_recur(collect, a)),
+        _ => (),
+    }
+}
+
 impl Path {
     pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_>) {
         for op in &self.children {
@@ -11,6 +24,9 @@ impl Path {
         }
         if self.tilde.is_some() {
             todo!()
+            /*ctx.apply_matched(|ctx, a| {
+                vec![ctx.idx_of(a).into()]
+            })*/
         }
     }
 }
@@ -20,7 +36,25 @@ impl Operator {
         match self {
             Operator::Dot(_, op) => op.eval(ctx),
             Operator::Bracket(_, op) => op.eval(ctx),
-            Operator::Recursive(_, op) => op.eval(ctx),
+            Operator::Recursive(_, op) => {
+                ctx.apply_matched(|_, a| {
+                    let mut all = Vec::new();
+                    flatten_recur(&mut all, a);
+                    all
+                });
+                if let Some(inner) = op {
+                    inner.eval(ctx);
+                }
+            },
+        }
+    }
+}
+
+impl RecursiveOp {
+    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+        match self {
+            RecursiveOp::Raw(inner) => inner.eval(ctx),
+            RecursiveOp::Bracket(_, inner) => inner.eval(ctx),
         }
     }
 }
@@ -62,11 +96,22 @@ fn step_handle(val: i64) -> (bool, usize) {
     }
 }
 
-fn idx_handle(val: i64, slice: &[Value]) -> usize {
+fn idx_handle(val: i64, slice: &[Value]) -> Option<usize> {
     if val < 0 {
-        slice.len() - val.abs() as usize
+        slice.len()
+            .checked_sub(val.abs() as usize)
     } else {
-        val as usize
+        Some(val as usize)
+    }
+}
+
+fn range(slice: &[Value], start: usize, end: usize) -> &[Value] {
+    if start > end || start > slice.len() {
+        &[]
+    } else if end >= slice.len() {
+        &slice[start..]
+    } else {
+        &slice[start..end]
     }
 }
 
@@ -82,10 +127,12 @@ impl BracketInner {
 
                 ctx.apply_matched(|_, a| match a {
                     Value::Array(v) => {
-                        let start = idx_handle(start, v);
-                        let end = idx_handle(end, v);
+                        let start = idx_handle(start, v)
+                            .unwrap_or(0);
+                        let end = idx_handle(end, v)
+                            .unwrap_or(0);
 
-                        let iter = v[start..end].iter();
+                        let iter = range(v, start, end).iter();
 
                         if rev {
                             iter.rev().step_by(step).collect()
@@ -102,10 +149,12 @@ impl BracketInner {
 
                 ctx.apply_matched(|_, a| match a {
                     Value::Array(v) => {
-                        let start = idx_handle(start, v);
-                        let end = idx_handle(end, v);
+                        let start = idx_handle(start, v)
+                            .unwrap_or(0);
+                        let end = idx_handle(end, v)
+                            .unwrap_or(0);
 
-                        v[start..end].iter().collect()
+                        range(v, start, end).iter().collect()
                     }
                     _ => vec![],
                 })
@@ -138,8 +187,10 @@ impl BracketLit {
         match self {
             BracketLit::Int(i) => {
                 ctx.apply_matched(|_, a| match a {
-                    Value::Array(v) => v.get(idx_handle(i.val, v)).map(|a| vec![a]).unwrap_or_default(),
-                    Value::Object(m) => m.get(&i.val.to_string()).map(|a| vec![a]).unwrap_or_default(),
+                    Value::Array(v) => idx_handle(i.val, v)
+                        .and_then(|idx| v.get(idx))
+                        .map(|a| vec![a])
+                        .unwrap_or_default(),
                     _ => vec![]
                 })
             }
@@ -220,7 +271,7 @@ impl SubPath {
                     match a {
                         Value::Array(v) => {
                             let idx = match &*mat {
-                                Value::Number(n) => Some(idx_handle(n.as_i64().unwrap(), v)),
+                                Value::Number(n) => idx_handle(n.as_i64().unwrap(), v),
                                 _ => None,
                             };
                             idx
@@ -251,14 +302,22 @@ impl SubPath {
 impl Filter {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         ctx.apply_matched(|ctx, a| {
-            let result = self.inner.eval_expr(ctx, a)
-                .map(|c| c.as_bool() == Some(true))
-                .unwrap_or(false);
-
-            if result {
-                vec![a]
-            } else {
-                vec![]
+            match a {
+                Value::Array(v) => v.iter()
+                    .filter(|&a| {
+                        self.inner.eval_expr(ctx, a)
+                            .map(|c| c.as_bool() == Some(true))
+                            .unwrap_or(false)
+                    })
+                    .collect(),
+                Value::Object(m) => m.values()
+                    .filter(|&a| {
+                        self.inner.eval_expr(ctx, a)
+                            .map(|c| c.as_bool() == Some(true))
+                            .unwrap_or(false)
+                    })
+                    .collect(),
+                _ => vec![]
             }
         })
     }
@@ -386,11 +445,5 @@ impl FilterExpr {
                 inner.eval_expr(ctx, val)
             }
         }
-    }
-}
-
-impl RecursiveOp {
-    fn eval(&self, _ctx: &mut EvalCtx<'_>) {
-        todo!()
     }
 }

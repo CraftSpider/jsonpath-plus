@@ -6,6 +6,7 @@ impl Ident {
     fn parser() -> impl Parser<Input, Ident, Error = Error> {
         filter::<_, _, Error>(|c: &char| c.is_alphanumeric() || *c == '-' || *c == '_')
             .repeated()
+            .at_least(1)
             .map_with_span(|val, span| Ident {
                 span: span.into(),
                 val: String::from_iter(val),
@@ -17,7 +18,7 @@ impl IntLit {
     fn parser() -> impl Parser<Input, IntLit, Error = Error> {
         just::<_, _, Error>('-')
             .or_not()
-            .then(filter(|c: &char| c.is_numeric()).repeated())
+            .then(filter(|c: &char| c.is_numeric()).repeated().at_least(1))
             .map_with_span(|(neg, val), span| IntLit {
                 span: span.into(),
                 val: match (String::from_iter(val).parse::<i64>().unwrap(), neg) {
@@ -137,8 +138,8 @@ impl Operator {
     fn parser() -> impl Parser<Input, Operator, Error = Error> {
         recursive(|operator| {
             token::DotDot::parser()
-                .then(RecursiveOp::parser(operator.clone()))
-                .map(|(dotdot, inner)| Operator::Recursive(dotdot, inner))
+                .then(RecursiveOp::parser(operator.clone()).or_not())
+                .map(|(dotdot, op)| Operator::Recursive(dotdot, op))
                 .or(token::Bracket::parser(BracketInner::parser(operator))
                     .map(|(brack, inner)| Operator::Bracket(brack, inner)))
                 .or(token::Dot::parser()
@@ -153,7 +154,8 @@ impl RecursiveOp {
         DotIdent::parser()
             .map(RecursiveOp::Raw)
             .or(token::Bracket::parser(BracketInner::parser(operator))
-                .map(|(bracket, inner)| RecursiveOp::Bracket(bracket, inner)))
+                .map(|(bracket, inner)| RecursiveOp::Bracket(bracket, inner))
+            )
     }
 }
 
@@ -191,6 +193,7 @@ impl BracketInner {
             .or(SubPath::parser(operator.clone()).map(BracketInner::Path))
             .or(Filter::parser(operator).map(BracketInner::Filter))
             .or(BracketLit::parser().map(BracketInner::Literal))
+            .padded()
     }
 }
 
