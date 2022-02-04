@@ -13,3 +13,6 @@ An implementation of the JSONPath A spec in Rust, with several extensions added 
   the currently selected object.
 - Subpath selectors, used as `$['a'][$.b.id]` or `$['a'][@.sum.id]`. Evaluates the
   subpath, then selects items with keys same as the result of the subpath.
+- ID selector `~`, used at the end of the path as `@.a.b~` or `$['a']['b']~`. Can be
+  used in filters to compare against the ID of a matched item. Doesn't yet work at
+  the top level.
