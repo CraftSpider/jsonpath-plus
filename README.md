@@ -1,7 +1,7 @@
 
 # Rust JSONPath Plus
 
-[![crates.io](https://img.shields.io/crates/v/rebound.svg)](https://crates.io/crates/jsonpath-plus)
+[![crates.io](https://img.shields.io/crates/v/jsonpath-plus.svg)](https://crates.io/crates/jsonpath-plus)
 [![Documentation](https://docs.rs/rebound/badge.svg)](https://docs.rs/jsonpath-plus)
 [![MIT/Apache-2 licensed](https://img.shields.io/crates/l/rebound.svg)](./LICENSE-APACHE)
 
