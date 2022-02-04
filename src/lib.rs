@@ -83,9 +83,7 @@ impl JsonPath {
     /// Find this pattern in the provided JSON value
     pub fn find<'a>(&self, value: &'a serde_json::Value) -> Vec<&'a serde_json::Value> {
         let mut ctx = EvalCtx::new(value);
-
         self.eval(&mut ctx);
-
         ctx.into_matched()
     }
 

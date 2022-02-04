@@ -1,5 +1,5 @@
 use std::num::NonZeroI64;
-use std::ops::Range;
+use std::ops;
 
 mod parse;
 mod eval;
@@ -13,11 +13,11 @@ type Error = chumsky::error::Simple<char>;
 // Items
 
 pub struct Span {
-    _source: Range<usize>,
+    _source: ops::Range<usize>,
 }
 
-impl From<Range<usize>> for Span {
-    fn from(span: Range<usize>) -> Self {
+impl From<ops::Range<usize>> for Span {
+    fn from(span: ops::Range<usize>) -> Self {
         Span { _source: span }
     }
 }
@@ -120,15 +120,33 @@ pub enum DotIdent {
     Name(Ident),
 }
 
+pub struct StepRange {
+    start: Option<IntLit>,
+    _colon1: token::Colon,
+    end: Option<IntLit>,
+    _colon2: token::Colon,
+    step: Option<NonZeroIntLit>,
+}
+
+pub struct Range {
+    start: Option<IntLit>,
+    _colon: token::Colon,
+    end: Option<IntLit>,
+}
+
+pub enum UnionComponent {
+    StepRange(StepRange),
+    Range(Range),
+    Parent(token::Caret),
+    Path(SubPath),
+    Filter(Filter),
+    Literal(BracketLit),
+}
+
 pub enum BracketInner {
-    StepRange(
-        Option<IntLit>,
-        token::Colon,
-        Option<IntLit>,
-        token::Colon,
-        Option<NonZeroIntLit>,
-    ),
-    Range(Option<IntLit>, token::Colon, Option<IntLit>),
+    Union(Vec<UnionComponent>),
+    StepRange(StepRange),
+    Range(Range),
     Wildcard(token::Star),
     Parent(token::Caret),
     Path(SubPath),

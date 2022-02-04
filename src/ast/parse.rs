@@ -168,26 +168,51 @@ impl DotIdent {
     }
 }
 
-impl BracketInner {
-    fn parser(operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static) -> impl Parser<Input, BracketInner, Error = Error> {
-        let steprange = IntLit::parser()
+impl StepRange {
+    fn parser() -> impl Parser<Input, StepRange, Error = Error> {
+        IntLit::parser()
             .or_not()
             .then(token::Colon::parser())
             .then(IntLit::parser().or_not())
             .then(token::Colon::parser())
             .then(NonZeroIntLit::parser().or_not())
             .map(|((((start, colon1), end), colon2), step)| {
-                BracketInner::StepRange(start, colon1, end, colon2, step)
-            });
+                StepRange { start, _colon1: colon1, end, _colon2: colon2, step }
+            })
+    }
+}
 
-        let range = IntLit::parser()
+impl Range {
+    fn parser() -> impl Parser<Input, Range, Error = Error> {
+        IntLit::parser()
             .or_not()
             .then(token::Colon::parser())
             .then(IntLit::parser().or_not())
-            .map(|((start, colon1), end)| BracketInner::Range(start, colon1, end));
+            .map(|((start, colon), end)| Range { start, _colon: colon, end })
+    }
+}
 
-        steprange
-            .or(range)
+impl UnionComponent {
+    fn parser(operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static) -> impl Parser<Input, UnionComponent, Error = Error> {
+        StepRange::parser()
+            .map(UnionComponent::StepRange)
+            .or(Range::parser().map(UnionComponent::Range))
+            .or(token::Caret::parser().map(UnionComponent::Parent))
+            .or(SubPath::parser(operator.clone()).map(UnionComponent::Path))
+            .or(Filter::parser(operator).map(UnionComponent::Filter))
+            .or(BracketLit::parser().map(UnionComponent::Literal))
+            .padded()
+    }
+}
+
+impl BracketInner {
+    fn parser(operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static) -> impl Parser<Input, BracketInner, Error = Error> {
+        UnionComponent::parser(operator.clone())
+            .separated_by(just(','))
+            .at_least(2)
+            .map(BracketInner::Union)
+            .or(StepRange::parser().map(BracketInner::StepRange))
+            .or(Range::parser().map(BracketInner::Range))
             .or(token::Star::parser().map(BracketInner::Wildcard))
             .or(token::Caret::parser().map(BracketInner::Parent))
             .or(SubPath::parser(operator.clone()).map(BracketInner::Path))

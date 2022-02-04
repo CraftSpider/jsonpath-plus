@@ -23,10 +23,10 @@ impl Path {
             op.eval(ctx)
         }
         if self.tilde.is_some() {
-            todo!()
-            /*ctx.apply_matched(|ctx, a| {
-                vec![ctx.idx_of(a).into()]
-            })*/
+            unimplemented!(
+                "Tilde at the top level isn't yet supported due to API design questions. Please \
+                raise an issue with your use case"
+            )
         }
     }
 }
@@ -115,49 +115,95 @@ fn range(slice: &[Value], start: usize, end: usize) -> &[Value] {
     }
 }
 
+impl StepRange {
+    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+        let start = self.start.as_ref().map(|i| i.val).unwrap_or(0);
+        let end = self.end.as_ref().map(|i| i.val).unwrap_or(i64::MAX);
+        let step = self.step.as_ref().map(|i| i.val.get()).unwrap_or(1);
+
+        let (rev, step) = step_handle(step);
+
+        ctx.apply_matched(|_, a| match a {
+            Value::Array(v) => {
+                let start = idx_handle(start, v)
+                    .unwrap_or(0);
+                let end = idx_handle(end, v)
+                    .unwrap_or(0);
+
+                let iter = range(v, start, end).iter();
+
+                if rev {
+                    iter.rev().step_by(step).collect()
+                } else {
+                    iter.step_by(step).collect()
+                }
+            }
+            _ => vec![],
+        })
+    }
+}
+
+impl Range {
+    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+        let start = self.start.as_ref().map(|i| i.val).unwrap_or(0);
+        let end = self.end.as_ref().map(|i| i.val).unwrap_or(i64::MAX);
+
+        ctx.apply_matched(|_, a| match a {
+            Value::Array(v) => {
+                let start = idx_handle(start, v)
+                    .unwrap_or(0);
+                let end = idx_handle(end, v)
+                    .unwrap_or(0);
+
+                range(v, start, end).iter().collect()
+            }
+            _ => vec![],
+        })
+    }
+}
+
+impl UnionComponent {
+    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+        match self {
+            UnionComponent::StepRange(step_range) => {
+                step_range.eval(ctx)
+            }
+            UnionComponent::Range(range) => {
+                range.eval(ctx)
+            }
+            UnionComponent::Parent(_) => {
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default())
+            }
+            UnionComponent::Path(path) => {
+                path.eval_match(ctx);
+            }
+            UnionComponent::Filter(filter) => {
+                filter.eval(ctx);
+            }
+            UnionComponent::Literal(lit) => {
+                lit.eval(ctx);
+            }
+        }
+    }
+}
+
 impl BracketInner {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
-            BracketInner::StepRange(start, _, end, _, step) => {
-                let start = start.as_ref().map(|i| i.val).unwrap_or(0);
-                let end = end.as_ref().map(|i| i.val).unwrap_or(i64::MAX);
-                let step = step.as_ref().map(|i| i.val.get()).unwrap_or(1);
-
-                let (rev, step) = step_handle(step);
-
-                ctx.apply_matched(|_, a| match a {
-                    Value::Array(v) => {
-                        let start = idx_handle(start, v)
-                            .unwrap_or(0);
-                        let end = idx_handle(end, v)
-                            .unwrap_or(0);
-
-                        let iter = range(v, start, end).iter();
-
-                        if rev {
-                            iter.rev().step_by(step).collect()
-                        } else {
-                            iter.step_by(step).collect()
-                        }
-                    }
-                    _ => vec![],
-                })
+            BracketInner::Union(components) => {
+                let mut new_matched = Vec::new();
+                for component in components {
+                    let mut new_ctx = ctx.child_ctx();
+                    component.eval(&mut new_ctx);
+                    new_matched.extend(new_ctx.into_matched());
+                }
+                ctx.set_matched(new_matched);
             }
-            BracketInner::Range(start, _, end) => {
-                let start = start.as_ref().map(|i| i.val).unwrap_or(0);
-                let end = end.as_ref().map(|i| i.val).unwrap_or(i64::MAX);
-
-                ctx.apply_matched(|_, a| match a {
-                    Value::Array(v) => {
-                        let start = idx_handle(start, v)
-                            .unwrap_or(0);
-                        let end = idx_handle(end, v)
-                            .unwrap_or(0);
-
-                        range(v, start, end).iter().collect()
-                    }
-                    _ => vec![],
-                })
+            BracketInner::StepRange(step_range) => {
+                step_range.eval(ctx)
+            }
+            BracketInner::Range(range) => {
+                range.eval(ctx)
             }
             BracketInner::Wildcard(_) => {
                 ctx.apply_matched(|_, a| match a {
@@ -426,8 +472,12 @@ impl FilterExpr {
 
                         Some(Cow::Owned(Value::from(lhs / rhs)))
                     }
+                    BinOp::Rem(_) => {
+                        let lhs = lhs.as_i64()?;
+                        let rhs = rhs.as_i64()?;
 
-                    _ => todo!(),
+                        Some(Cow::Owned(Value::from(lhs % rhs)))
+                    }
                 }
             }
             FilterExpr::Path(path) => {

@@ -73,6 +73,14 @@ impl<'a> EvalCtx<'a> {
         }
     }
 
+    pub fn child_ctx(&self) -> EvalCtx<'a> {
+        EvalCtx {
+            root: self.root,
+            cur_matched: self.cur_matched.clone(),
+            parents: self.parents.clone(),
+        }
+    }
+
     pub fn root(&self) -> &'a Value {
         self.root
     }
@@ -97,6 +105,10 @@ impl<'a> EvalCtx<'a> {
 
     pub fn parent_of(&self, val: &'a Value) -> Option<&'a Value> {
         self.parents.get(&RefKey(val)).copied()
+    }
+
+    pub fn set_matched(&mut self, matched: Vec<&'a Value>) {
+        self.cur_matched = matched;
     }
 
     pub fn apply_matched(&mut self, f: impl Fn(&Self, &'a Value) -> Vec<&'a Value>) {
