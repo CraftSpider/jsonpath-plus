@@ -124,13 +124,13 @@ impl JsonPath {
         let mut ctx = EvalCtx::new(value);
         self.eval(&mut ctx);
 
-        let paths: Vec<_> = ctx.paths_matched();
+        let paths = ctx.paths_matched();
 
         let mut out = value.clone();
 
         for p in paths {
             let replace_on = resolve_path(&p[..p.len() - 1], &mut out);
-            let last_idx = p.last().unwrap();
+            let last_idx = &p[p.len() - 1];
             match replace_on {
                 Value::Array(v) => {
                     let last_idx = last_idx.as_int();
