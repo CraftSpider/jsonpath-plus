@@ -3,9 +3,9 @@
 use std::error::Error;
 use std::{error, fmt};
 
+use crate::Idx;
 use chumsky::error::Simple;
 use serde_json::Value;
-use crate::Idx;
 
 /// Error returned by a failure to parse a provided JSON Path
 #[derive(Debug)]
@@ -135,7 +135,10 @@ pub enum ResolveError {
 
 impl ResolveError {
     pub(crate) fn mismatched(expected: JsonTy, got: &Value) -> ResolveError {
-        ResolveError::MismatchedTy { expected, actual: got.into() }
+        ResolveError::MismatchedTy {
+            expected,
+            actual: got.into(),
+        }
     }
 }
 
@@ -143,14 +146,22 @@ impl fmt::Display for ResolveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ResolveError::MismatchedTy { expected, actual } => {
-                write!(f, "Resolved path expected type {}, instead got type {}", expected, actual)
+                write!(
+                    f,
+                    "Resolved path expected type {}, instead got type {}",
+                    expected, actual
+                )
             }
             ResolveError::MissingIdx(idx) => {
                 let idx = match idx {
                     Idx::Array(i) => i as &dyn fmt::Debug,
                     Idx::Object(i) => i as &dyn fmt::Debug,
                 };
-                write!(f, "Resolved path expected an index {:?}, but it didn't exist", idx)
+                write!(
+                    f,
+                    "Resolved path expected an index {:?}, but it didn't exist",
+                    idx
+                )
             }
         }
     }

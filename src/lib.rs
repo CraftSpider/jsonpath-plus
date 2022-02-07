@@ -30,11 +30,11 @@ use utils::{delete_paths, replace_paths};
 mod ast;
 pub mod error;
 mod eval;
-mod utils;
 pub mod idx;
+mod utils;
 
-pub use ast::Path as JsonPath;
 use crate::utils::try_replace_paths;
+pub use ast::Path as JsonPath;
 
 /// Find a pattern in the provided JSON value. Recompiles the pattern every call, if the same
 /// pattern is used a lot should instead try using [`JsonPath::compile`].
@@ -42,10 +42,7 @@ use crate::utils::try_replace_paths;
 /// # Errors
 ///
 /// - If the provided pattern fails to parse as a valid JSON path
-pub fn find<'a>(
-    pattern: &str,
-    value: &'a Value,
-) -> Result<Vec<&'a Value>, ParseError> {
+pub fn find<'a>(pattern: &str, value: &'a Value) -> Result<Vec<&'a Value>, ParseError> {
     Ok(JsonPath::compile(pattern)?.find(value))
 }
 
@@ -112,11 +109,7 @@ impl JsonPath {
     /// value returned by the provided function, then return the resulting object
     #[must_use = "this returns the new value, without modifying the original. To work in-place, \
                   use `replace_on`"]
-    pub fn replace(
-        &self,
-        value: &Value,
-        f: impl FnMut(&Value) -> Value,
-    ) -> Value {
+    pub fn replace(&self, value: &Value, f: impl FnMut(&Value) -> Value) -> Value {
         let paths = self.find_paths(value);
         let mut out = value.clone();
         replace_paths(paths, &mut out, f);
@@ -125,11 +118,7 @@ impl JsonPath {
 
     /// Replace items matched by this pattern on the provided JSON value, filling them the value
     /// returned by the provided function, operating in-place
-    pub fn replace_on(
-        &self,
-        value: &mut Value,
-        f: impl FnMut(&Value) -> Value,
-    ) {
+    pub fn replace_on(&self, value: &mut Value, f: impl FnMut(&Value) -> Value) {
         let paths = self.find_paths(value);
         replace_paths(paths, value, f);
     }

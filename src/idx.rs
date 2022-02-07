@@ -13,7 +13,6 @@ pub enum Idx {
 }
 
 impl Idx {
-
     /// Whether this is an array index
     #[must_use]
     pub fn is_array(&self) -> bool {
@@ -89,7 +88,9 @@ impl IdxPath {
     pub fn remove(&self, n: usize) -> IdxPath {
         assert!(
             n <= self.len(),
-            "Cannot remove {} items from path, path is only {} items long", n, self.len()
+            "Cannot remove {} items from path, path is only {} items long",
+            n,
+            self.len()
         );
         IdxPath(self.0[..self.len() - n].to_owned())
     }
@@ -106,13 +107,15 @@ impl IdxPath {
         for idx in &self.0 {
             match idx {
                 Idx::Array(i) => {
-                    cur = cur.as_array()
+                    cur = cur
+                        .as_array()
                         .ok_or_else(|| ResolveError::mismatched(JsonTy::Array, cur))?
                         .get(*i)
                         .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?;
                 }
                 Idx::Object(i) => {
-                    cur = cur.as_object()
+                    cur = cur
+                        .as_object()
                         .ok_or_else(|| ResolveError::mismatched(JsonTy::Object, cur))?
                         .get(i)
                         .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?;
@@ -136,15 +139,23 @@ impl IdxPath {
             match idx {
                 Idx::Array(i) => {
                     let json_ty = JsonTy::from(&*cur);
-                    cur = cur.as_array_mut()
-                        .ok_or(ResolveError::MismatchedTy { expected: JsonTy::Array, actual: json_ty })?
+                    cur = cur
+                        .as_array_mut()
+                        .ok_or(ResolveError::MismatchedTy {
+                            expected: JsonTy::Array,
+                            actual: json_ty,
+                        })?
                         .get_mut(*i)
                         .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?;
                 }
                 Idx::Object(i) => {
                     let json_ty = JsonTy::from(&*cur);
-                    cur = cur.as_object_mut()
-                        .ok_or(ResolveError::MismatchedTy { expected: JsonTy::Array, actual: json_ty })?
+                    cur = cur
+                        .as_object_mut()
+                        .ok_or(ResolveError::MismatchedTy {
+                            expected: JsonTy::Array,
+                            actual: json_ty,
+                        })?
                         .get_mut(i)
                         .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?;
                 }

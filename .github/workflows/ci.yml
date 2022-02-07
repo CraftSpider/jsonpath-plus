@@ -18,10 +18,15 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Check
+      - name: Check (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: check
+          command: check --no-default-features
+
+      - name: Check (all features)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check --all-features
 
   lints:
     name: Jsonpath Lints
@@ -44,10 +49,15 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Run clippy
+      - name: Run clippy (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: clippy
+          command: clippy --no-default-features
+
+      - name: Run clippy (all features)
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy --all-features
 
   test:
     name: Jsonpath Tests
@@ -63,7 +73,12 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Run tests
+      - name: Run tests (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: test
+          command: test --no-defeault-features
+
+      - name: Run tests (no features)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test --all-features

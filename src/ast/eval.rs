@@ -15,7 +15,7 @@ fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
 
 impl Path {
     pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        for op in &self.children {
+        for op in &self.segments {
             op.eval(ctx);
         }
         if self.tilde.is_some() {
@@ -27,12 +27,12 @@ impl Path {
     }
 }
 
-impl Operator {
+impl Segment {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
-            Operator::Dot(_, op) => op.eval(ctx),
-            Operator::Bracket(_, op) => op.eval(ctx),
-            Operator::Recursive(_, op) => {
+            Segment::Dot(_, op) => op.eval(ctx),
+            Segment::Bracket(_, op) => op.eval(ctx),
+            Segment::Recursive(_, op) => {
                 ctx.apply_matched(|_, a| {
                     let mut all = Vec::new();
                     flatten_recur(&mut all, a);
@@ -227,7 +227,7 @@ impl SubPath {
         let new_root = if relative { a } else { ctx.root() };
 
         let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents().clone());
-        for op in &self.children {
+        for op in &self.segments {
             op.eval(&mut new_ctx);
         }
         let matched = new_ctx.into_matched();
@@ -255,7 +255,7 @@ impl SubPath {
             let new_root = if relative { a } else { ctx.root() };
 
             let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents().clone());
-            for op in &self.children {
+            for op in &self.segments {
                 op.eval(&mut new_ctx);
             }
             let matched = new_ctx.into_matched();

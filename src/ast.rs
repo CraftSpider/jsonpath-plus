@@ -1,9 +1,13 @@
 use std::num::NonZeroI64;
-use std::ops;
 
 mod eval;
 mod parse;
+#[cfg(feature = "spanned")]
+mod span;
 mod token;
+
+#[cfg(feature = "spanned")]
+pub use span::Span;
 
 // Aliases
 
@@ -12,17 +16,8 @@ type Error = chumsky::error::Simple<char>;
 
 // Items
 
-pub struct Span {
-    _source: ops::Range<usize>,
-}
-
-impl From<ops::Range<usize>> for Span {
-    fn from(span: ops::Range<usize>) -> Self {
-        Span { _source: span }
-    }
-}
-
 pub struct Ident {
+    #[cfg(feature = "spanned")]
     _span: Span,
     val: String,
 }
@@ -34,16 +29,19 @@ impl Ident {
 }
 
 pub struct IntLit {
+    #[cfg(feature = "spanned")]
     span: Span,
     val: i64,
 }
 
 pub struct NonZeroIntLit {
+    #[cfg(feature = "spanned")]
     _span: Span,
     val: NonZeroI64,
 }
 
 pub struct StringContent {
+    #[cfg(feature = "spanned")]
     _span: Span,
     val: String,
 }
@@ -75,11 +73,13 @@ impl StringLit {
 }
 
 pub struct BoolLit {
+    #[cfg(feature = "spanned")]
     _span: Span,
     val: bool,
 }
 
 pub struct NullLit {
+    #[cfg(feature = "spanned")]
     _span: Span,
 }
 
@@ -89,13 +89,13 @@ pub struct NullLit {
               value"]
 pub struct Path {
     _dollar: token::Dollar,
-    children: Vec<Operator>,
+    segments: Vec<Segment>,
     tilde: Option<token::Tilde>,
 }
 
 pub struct SubPath {
     kind: PathKind,
-    children: Vec<Operator>,
+    segments: Vec<Segment>,
     tilde: Option<token::Tilde>,
 }
 
@@ -104,7 +104,7 @@ pub enum PathKind {
     Relative(token::At),
 }
 
-pub enum Operator {
+pub enum Segment {
     Dot(token::Dot, DotIdent),
     Bracket(token::Bracket, BracketInner),
     Recursive(token::DotDot, Option<RecursiveOp>),

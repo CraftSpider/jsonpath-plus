@@ -10,8 +10,10 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/CraftSpider/jsonpath-plus"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 chumsky = "0.7"
 serde_json = "1.0"
+
+[features]
+# Whether the parsed paths should preserve token spans referencing where in the provided path they came from
+spanned = []

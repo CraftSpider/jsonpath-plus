@@ -6,8 +6,9 @@ impl Ident {
         filter::<_, _, Error>(|c: &char| c.is_alphanumeric() || *c == '-' || *c == '_')
             .repeated()
             .at_least(1)
-            .map_with_span(|val, span| Ident {
-                _span: span.into(),
+            .map_with_span(|val, _span| Ident {
+                #[cfg(feature = "spanned")]
+                _span: _span.into(),
                 val: String::from_iter(val),
             })
     }
@@ -18,8 +19,9 @@ impl IntLit {
         just::<_, _, Error>('-')
             .or_not()
             .then(filter(|c: &char| c.is_numeric()).repeated().at_least(1))
-            .map_with_span(|(neg, val), span| IntLit {
-                span: span.into(),
+            .map_with_span(|(neg, val), _span| IntLit {
+                #[cfg(feature = "spanned")]
+                span: _span.into(),
                 val: match (String::from_iter(val).parse::<i64>().unwrap(), neg) {
                     (val, Some(_)) => -val,
                     (val, None) => val,
@@ -32,6 +34,7 @@ impl NonZeroIntLit {
     fn parser() -> impl Parser<Input, NonZeroIntLit, Error = Error> {
         IntLit::parser().try_map(|il, span| {
             Ok(NonZeroIntLit {
+                #[cfg(feature = "spanned")]
                 _span: il.span,
                 val: il
                     .val
@@ -47,8 +50,9 @@ impl StringContent {
         none_of::<_, _, Error>([delimiter])
             .or(just(format!("\\{}", delimiter)).to(delimiter))
             .repeated()
-            .map_with_span(|content, span| StringContent {
-                _span: span.into(),
+            .map_with_span(|content, _span| StringContent {
+                #[cfg(feature = "spanned")]
+                _span: _span.into(),
                 val: String::from_iter(content),
             })
     }
@@ -93,8 +97,9 @@ impl BoolLit {
         just::<_, _, Error>("true")
             .to(true)
             .or(just("false").to(false))
-            .map_with_span(|val, span| BoolLit {
-                _span: span.into(),
+            .map_with_span(|val, _span| BoolLit {
+                #[cfg(feature = "spanned")]
+                _span: _span.into(),
                 val,
             })
     }
@@ -102,19 +107,22 @@ impl BoolLit {
 
 impl NullLit {
     fn parser() -> impl Parser<Input, NullLit, Error = Error> {
-        just::<_, _, Error>("null").map_with_span(|_, span| NullLit { _span: span.into() })
+        just::<_, _, Error>("null").map_with_span(|_, _span| NullLit {
+            #[cfg(feature = "spanned")]
+            _span: _span.into(),
+        })
     }
 }
 
 impl Path {
     pub(crate) fn parser() -> impl Parser<Input, Path, Error = Error> {
         token::Dollar::parser()
-            .then(Operator::parser().repeated())
+            .then(Segment::parser().repeated())
             .then(token::Tilde::parser().or_not())
             .then_ignore(end())
-            .map(|((dollar, children), tilde)| Path {
+            .map(|((dollar, segments), tilde)| Path {
                 _dollar: dollar,
-                children,
+                segments,
                 tilde,
             })
     }
@@ -122,14 +130,14 @@ impl Path {
 
 impl SubPath {
     fn parser(
-        operator: impl Parser<Input, Operator, Error = Error>,
+        operator: impl Parser<Input, Segment, Error = Error>,
     ) -> impl Parser<Input, SubPath, Error = Error> {
         PathKind::parser()
             .then(operator.repeated())
             .then(token::Tilde::parser().or_not())
-            .map(|((kind, children), tilde)| SubPath {
+            .map(|((kind, segments), tilde)| SubPath {
                 kind,
-                children,
+                segments,
                 tilde,
             })
     }
@@ -143,24 +151,24 @@ impl PathKind {
     }
 }
 
-impl Operator {
-    fn parser() -> impl Parser<Input, Operator, Error = Error> {
+impl Segment {
+    fn parser() -> impl Parser<Input, Segment, Error = Error> {
         recursive(|operator| {
             token::DotDot::parser()
                 .then(RecursiveOp::parser(operator.clone()).or_not())
-                .map(|(dotdot, op)| Operator::Recursive(dotdot, op))
+                .map(|(dotdot, op)| Segment::Recursive(dotdot, op))
                 .or(token::Bracket::parser(BracketInner::parser(operator))
-                    .map(|(brack, inner)| Operator::Bracket(brack, inner)))
+                    .map(|(brack, inner)| Segment::Bracket(brack, inner)))
                 .or(token::Dot::parser()
                     .then(DotIdent::parser())
-                    .map(|(dot, ident)| Operator::Dot(dot, ident)))
+                    .map(|(dot, ident)| Segment::Dot(dot, ident)))
         })
     }
 }
 
 impl RecursiveOp {
     fn parser(
-        operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static,
+        operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, RecursiveOp, Error = Error> {
         DotIdent::parser()
             .map(RecursiveOp::Raw)
@@ -212,7 +220,7 @@ impl Range {
 
 impl UnionComponent {
     fn parser(
-        operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static,
+        operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, UnionComponent, Error = Error> {
         StepRange::parser()
             .map(UnionComponent::StepRange)
@@ -227,7 +235,7 @@ impl UnionComponent {
 
 impl BracketInner {
     fn parser(
-        operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static,
+        operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, BracketInner, Error = Error> {
         UnionComponent::parser(operator.clone())
             .separated_by(just(','))
@@ -254,7 +262,7 @@ impl BracketLit {
 
 impl Filter {
     fn parser(
-        operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static,
+        operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, Filter, Error = Error> {
         token::Question::parser()
             .then(token::Paren::parser(FilterExpr::parser(operator)))
@@ -278,7 +286,7 @@ impl ExprLit {
 
 impl FilterExpr {
     fn parser(
-        operator: impl Parser<Input, Operator, Error = Error> + Clone + 'static,
+        operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, FilterExpr, Error = Error> {
         recursive(|filt_expr| {
             let atom = SubPath::parser(operator)

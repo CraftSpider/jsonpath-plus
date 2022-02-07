@@ -1,13 +1,15 @@
-use std::cmp::Reverse;
 use crate::idx::IdxPath;
 use serde_json::Value;
+use std::cmp::Reverse;
 
 pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
     paths.sort_unstable_by_key(|idx| Reverse(idx.len()));
     for path in paths {
-        let delete_on = path.remove(1).resolve_on_mut(out)
+        let delete_on = path
+            .remove(1)
+            .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
         match delete_on {
@@ -27,7 +29,9 @@ pub fn replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut
     // of other paths, they get resolved first and don't cause panics
     paths.sort_unstable_by_key(|idx| Reverse(idx.len()));
     for path in paths {
-        let replace_on = path.remove(1).resolve_on_mut(out)
+        let replace_on = path
+            .remove(1)
+            .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
         match replace_on {
@@ -46,12 +50,18 @@ pub fn replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut
     }
 }
 
-pub fn try_replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut(&Value) -> Option<Value>) {
+pub fn try_replace_paths(
+    mut paths: Vec<IdxPath>,
+    out: &mut Value,
+    mut f: impl FnMut(&Value) -> Option<Value>,
+) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
     paths.sort_unstable_by_key(|idx| Reverse(idx.len()));
     for path in paths {
-        let replace_on = path.remove(1).resolve_on_mut(out)
+        let replace_on = path
+            .remove(1)
+            .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
         match replace_on {
