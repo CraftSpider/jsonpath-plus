@@ -29,7 +29,7 @@ macro_rules! wrapping_tokens {
 
                 #[cfg(not(feature = "spanned"))]
                 pub(super) fn parser<T>(item: impl Parser<Input, T, Error = Error>) -> impl Parser<Input, (Self, T), Error = Error> {
-                    item.delimited_by($start, $end)
+                    item.delimited_by(just($start), just($end))
                         .map(|inner| {
                             ($name(()), inner)
                         })
