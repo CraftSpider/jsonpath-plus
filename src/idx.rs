@@ -1,7 +1,7 @@
 //! Items related to shortest-path indexing of JSON objects
 
-use core::cmp::Ordering;
 use crate::error::{JsonTy, ResolveError};
+use core::cmp::Ordering;
 use serde_json::Value;
 
 /// An index on a JSON object, either an integer index on an array or a string index on an object

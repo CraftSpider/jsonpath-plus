@@ -34,7 +34,9 @@ fn test_delete_array() {
 #[test]
 fn test_replace_in_try_replace() {
     let json = json!({"list": ["BLUE", "ORANGE", "GREEN", "RED"]});
-    let result = JsonPath::compile("$.list[*]").unwrap().try_replace(&json, |_| Some(Value::Null));
+    let result = JsonPath::compile("$.list[*]")
+        .unwrap()
+        .try_replace(&json, |_| Some(Value::Null));
 
     assert_eq!(result, json!({"list": [null, null, null, null]}));
 }
@@ -42,7 +44,9 @@ fn test_replace_in_try_replace() {
 #[test]
 fn test_delete_in_try_replace() {
     let json = json!({"list": ["BLUE", "ORANGE", "GREEN", "RED"]});
-    let result = JsonPath::compile("$.list[*]").unwrap().try_replace(&json, |_| None);
+    let result = JsonPath::compile("$.list[*]")
+        .unwrap()
+        .try_replace(&json, |_| None);
 
     assert_eq!(result, json!({"list": []}));
 }
