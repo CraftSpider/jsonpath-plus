@@ -20,20 +20,22 @@
     clippy::must_use_candidate
 )]
 
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 use serde_json::Value;
 
 use error::{ParseError, ParseOrJsonError};
 use eval::EvalCtx;
 use idx::{Idx, IdxPath};
-use utils::{delete_paths, replace_paths};
+use utils::{delete_paths, replace_paths, try_replace_paths};
 
-mod ast;
+pub mod ast;
 pub mod error;
 mod eval;
 pub mod idx;
 mod utils;
 
-use crate::utils::try_replace_paths;
+#[doc(inline)]
 pub use ast::Path as JsonPath;
 
 /// Find a pattern in the provided JSON value. Recompiles the pattern every call, if the same
@@ -126,7 +128,7 @@ impl JsonPath {
     /// Replace or delete items matched by this pattern on the provided JSON value. Replaces if the
     /// provided method returns `Some`, deletes if the provided method returns `None`. This method
     /// then returns the resulting object
-    #[must_use = "this returns the new value, without modifying the origin. To work in-place, \
+    #[must_use = "this returns the new value, without modifying the original. To work in-place, \
                   use `try_replace_on`"]
     pub fn try_replace(&self, value: &Value, f: impl FnMut(&Value) -> Option<Value>) -> Value {
         let paths = self.find_paths(value);

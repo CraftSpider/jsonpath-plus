@@ -17,3 +17,7 @@ serde_json = "1.0"
 [features]
 # Whether the parsed paths should preserve token spans referencing where in the provided path they came from
 spanned = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

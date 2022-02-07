@@ -13,7 +13,7 @@ macro_rules! wrapping_tokens {
             #[cfg(feature = "spanned")]
             pub struct $name(Span, Span);
             #[cfg(not(feature = "spanned"))]
-            pub struct $name;
+            pub struct $name(());
 
             impl $name {
                 #[cfg(feature = "spanned")]
@@ -31,8 +31,15 @@ macro_rules! wrapping_tokens {
                 pub(super) fn parser<T>(item: impl Parser<Input, T, Error = Error>) -> impl Parser<Input, (Self, T), Error = Error> {
                     item.delimited_by($start, $end)
                         .map(|inner| {
-                            ($name, inner)
+                            ($name(()), inner)
                         })
+                }
+            }
+
+            #[cfg(feature = "spanned")]
+            impl crate::ast::Spanned for $name {
+                fn span(&self) -> crate::ast::Span {
+                    self.0.join(self.1)
                 }
             }
             )*
@@ -53,7 +60,7 @@ macro_rules! simple_tokens {
             #[cfg(feature = "spanned")]
             pub struct $name(Span);
             #[cfg(not(feature = "spanned"))]
-            pub struct $name;
+            pub struct $name(());
 
             impl $name {
                 #[cfg(feature = "spanned")]
@@ -64,7 +71,14 @@ macro_rules! simple_tokens {
 
                 #[cfg(not(feature = "spanned"))]
                 pub(super) fn parser() -> impl Parser<Input, Self, Error = Error> {
-                    just::<_, _, Error>($just).map(|_| $name)
+                    just::<_, _, Error>($just).map(|_| $name(()))
+                }
+            }
+
+            #[cfg(feature = "spanned")]
+            impl crate::ast::Spanned for $name {
+                fn span(&self) -> crate::ast::Span {
+                    self.0
                 }
             }
             )*

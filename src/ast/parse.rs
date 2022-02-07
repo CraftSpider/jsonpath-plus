@@ -8,7 +8,7 @@ impl Ident {
             .at_least(1)
             .map_with_span(|val, _span| Ident {
                 #[cfg(feature = "spanned")]
-                _span: _span.into(),
+                span: _span.into(),
                 val: String::from_iter(val),
             })
     }
@@ -35,7 +35,7 @@ impl NonZeroIntLit {
         IntLit::parser().try_map(|il, span| {
             Ok(NonZeroIntLit {
                 #[cfg(feature = "spanned")]
-                _span: il.span,
+                span: il.span,
                 val: il
                     .val
                     .try_into()
@@ -52,7 +52,7 @@ impl StringContent {
             .repeated()
             .map_with_span(|content, _span| StringContent {
                 #[cfg(feature = "spanned")]
-                _span: _span.into(),
+                span: _span.into(),
                 val: String::from_iter(content),
             })
     }
@@ -64,9 +64,9 @@ impl SingleStringLit {
             .then(StringContent::parser('\''))
             .then(token::SingleQuote::parser())
             .map(|((start, content), end)| SingleStringLit {
-                _start: start,
+                start,
                 content,
-                _end: end,
+                end,
             })
     }
 }
@@ -77,9 +77,9 @@ impl DoubleStringLit {
             .then(StringContent::parser('"'))
             .then(token::DoubleQuote::parser())
             .map(|((start, content), end)| DoubleStringLit {
-                _start: start,
+                start,
                 content,
-                _end: end,
+                end,
             })
     }
 }
@@ -99,7 +99,7 @@ impl BoolLit {
             .or(just("false").to(false))
             .map_with_span(|val, _span| BoolLit {
                 #[cfg(feature = "spanned")]
-                _span: _span.into(),
+                span: _span.into(),
                 val,
             })
     }
@@ -109,7 +109,7 @@ impl NullLit {
     fn parser() -> impl Parser<Input, NullLit, Error = Error> {
         just::<_, _, Error>("null").map_with_span(|_, _span| NullLit {
             #[cfg(feature = "spanned")]
-            _span: _span.into(),
+            span: _span.into(),
         })
     }
 }
@@ -121,7 +121,7 @@ impl Path {
             .then(token::Tilde::parser().or_not())
             .then_ignore(end())
             .map(|((dollar, segments), tilde)| Path {
-                _dollar: dollar,
+                dollar,
                 segments,
                 tilde,
             })
@@ -157,10 +157,10 @@ impl Segment {
             token::DotDot::parser()
                 .then(RecursiveOp::parser(operator.clone()).or_not())
                 .map(|(dotdot, op)| Segment::Recursive(dotdot, op))
-                .or(token::Bracket::parser(BracketInner::parser(operator))
+                .or(token::Bracket::parser(BracketSelector::parser(operator))
                     .map(|(brack, inner)| Segment::Bracket(brack, inner)))
                 .or(token::Dot::parser()
-                    .then(DotIdent::parser())
+                    .then(RawSelector::parser())
                     .map(|(dot, ident)| Segment::Dot(dot, ident)))
         })
     }
@@ -170,19 +170,19 @@ impl RecursiveOp {
     fn parser(
         operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, RecursiveOp, Error = Error> {
-        DotIdent::parser()
+        RawSelector::parser()
             .map(RecursiveOp::Raw)
-            .or(token::Bracket::parser(BracketInner::parser(operator))
+            .or(token::Bracket::parser(BracketSelector::parser(operator))
                 .map(|(bracket, inner)| RecursiveOp::Bracket(bracket, inner)))
     }
 }
 
-impl DotIdent {
-    fn parser() -> impl Parser<Input, DotIdent, Error = Error> {
+impl RawSelector {
+    fn parser() -> impl Parser<Input, RawSelector, Error = Error> {
         token::Star::parser()
-            .map(DotIdent::Wildcard)
-            .or(token::Caret::parser().map(DotIdent::Parent))
-            .or(Ident::parser().map(DotIdent::Name))
+            .map(RawSelector::Wildcard)
+            .or(token::Caret::parser().map(RawSelector::Parent))
+            .or(Ident::parser().map(RawSelector::Name))
     }
 }
 
@@ -196,9 +196,9 @@ impl StepRange {
             .then(NonZeroIntLit::parser().or_not())
             .map(|((((start, colon1), end), colon2), step)| StepRange {
                 start,
-                _colon1: colon1,
+                colon1,
                 end,
-                _colon2: colon2,
+                colon2,
                 step,
             })
     }
@@ -212,7 +212,7 @@ impl Range {
             .then(IntLit::parser().or_not())
             .map(|((start, colon), end)| Range {
                 start,
-                _colon: colon,
+                colon,
                 end,
             })
     }
@@ -233,21 +233,21 @@ impl UnionComponent {
     }
 }
 
-impl BracketInner {
+impl BracketSelector {
     fn parser(
         operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
-    ) -> impl Parser<Input, BracketInner, Error = Error> {
+    ) -> impl Parser<Input, BracketSelector, Error = Error> {
         UnionComponent::parser(operator.clone())
             .separated_by(just(','))
             .at_least(2)
-            .map(BracketInner::Union)
-            .or(StepRange::parser().map(BracketInner::StepRange))
-            .or(Range::parser().map(BracketInner::Range))
-            .or(token::Star::parser().map(BracketInner::Wildcard))
-            .or(token::Caret::parser().map(BracketInner::Parent))
-            .or(SubPath::parser(operator.clone()).map(BracketInner::Path))
-            .or(Filter::parser(operator).map(BracketInner::Filter))
-            .or(BracketLit::parser().map(BracketInner::Literal))
+            .map(BracketSelector::Union)
+            .or(StepRange::parser().map(BracketSelector::StepRange))
+            .or(Range::parser().map(BracketSelector::Range))
+            .or(token::Star::parser().map(BracketSelector::Wildcard))
+            .or(token::Caret::parser().map(BracketSelector::Parent))
+            .or(SubPath::parser(operator.clone()).map(BracketSelector::Path))
+            .or(Filter::parser(operator).map(BracketSelector::Filter))
+            .or(BracketLit::parser().map(BracketSelector::Literal))
             .padded()
     }
 }
@@ -267,8 +267,8 @@ impl Filter {
         token::Question::parser()
             .then(token::Paren::parser(FilterExpr::parser(operator)))
             .map(|(question, (paren, inner))| Filter {
-                _question: question,
-                _paren: paren,
+                question,
+                paren,
                 inner,
             })
     }
@@ -332,20 +332,20 @@ impl UnOp {
 }
 
 impl BinOp {
-    pub fn product_parser() -> impl Parser<Input, BinOp, Error = Error> {
+    fn product_parser() -> impl Parser<Input, BinOp, Error = Error> {
         token::Star::parser()
             .map(BinOp::Mul)
             .or(token::RightSlash::parser().map(BinOp::Div))
             .or(token::Percent::parser().map(BinOp::Rem))
     }
 
-    pub fn sum_parser() -> impl Parser<Input, BinOp, Error = Error> {
+    fn sum_parser() -> impl Parser<Input, BinOp, Error = Error> {
         token::Plus::parser()
             .map(BinOp::Add)
             .or(token::Dash::parser().map(BinOp::Sub))
     }
 
-    pub fn cmp_parser() -> impl Parser<Input, BinOp, Error = Error> {
+    fn cmp_parser() -> impl Parser<Input, BinOp, Error = Error> {
         token::EqEq::parser()
             .map(BinOp::Eq)
             .or(token::LessEq::parser().map(BinOp::Le))
@@ -354,11 +354,11 @@ impl BinOp {
             .or(token::GreaterThan::parser().map(BinOp::Gt))
     }
 
-    pub fn and_parser() -> impl Parser<Input, BinOp, Error = Error> {
+    fn and_parser() -> impl Parser<Input, BinOp, Error = Error> {
         token::DoubleAnd::parser().map(BinOp::And)
     }
 
-    pub fn or_parser() -> impl Parser<Input, BinOp, Error = Error> {
+    fn or_parser() -> impl Parser<Input, BinOp, Error = Error> {
         token::DoublePipe::parser().map(BinOp::Or)
     }
 }

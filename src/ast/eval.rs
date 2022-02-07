@@ -55,18 +55,18 @@ impl RecursiveOp {
     }
 }
 
-impl DotIdent {
+impl RawSelector {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
-            DotIdent::Wildcard(_) => ctx.apply_matched(|_, a| match a {
+            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a {
                 Value::Array(v) => v.iter().collect(),
                 Value::Object(m) => m.values().collect(),
                 _ => vec![],
             }),
-            DotIdent::Parent(_) => {
+            RawSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
             }
-            DotIdent::Name(name) => ctx.apply_matched(|_, a| match a {
+            RawSelector::Name(name) => ctx.apply_matched(|_, a| match a {
                 Value::Object(m) => m.get(name.as_str()).map(|a| vec![a]).unwrap_or_default(),
                 _ => vec![],
             }),
@@ -164,10 +164,10 @@ impl UnionComponent {
     }
 }
 
-impl BracketInner {
+impl BracketSelector {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
-            BracketInner::Union(components) => {
+            BracketSelector::Union(components) => {
                 let mut new_matched = Vec::new();
                 for component in components {
                     let mut new_ctx = ctx.child_ctx();
@@ -176,23 +176,23 @@ impl BracketInner {
                 }
                 ctx.set_matched(new_matched);
             }
-            BracketInner::StepRange(step_range) => step_range.eval(ctx),
-            BracketInner::Range(range) => range.eval(ctx),
-            BracketInner::Wildcard(_) => ctx.apply_matched(|_, a| match a {
+            BracketSelector::StepRange(step_range) => step_range.eval(ctx),
+            BracketSelector::Range(range) => range.eval(ctx),
+            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a {
                 Value::Array(v) => v.iter().collect(),
                 Value::Object(m) => m.values().collect(),
                 _ => vec![],
             }),
-            BracketInner::Parent(_) => {
+            BracketSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
             }
-            BracketInner::Path(path) => {
+            BracketSelector::Path(path) => {
                 path.eval_match(ctx);
             }
-            BracketInner::Filter(filter) => {
+            BracketSelector::Filter(filter) => {
                 filter.eval(ctx);
             }
-            BracketInner::Literal(lit) => {
+            BracketSelector::Literal(lit) => {
                 lit.eval(ctx);
             }
         }
