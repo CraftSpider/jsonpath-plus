@@ -1,5 +1,6 @@
 //! Items related to shortest-path indexing of JSON objects
 
+use core::cmp::Ordering;
 use crate::error::{JsonTy, ResolveError};
 use serde_json::Value;
 
@@ -163,6 +164,23 @@ impl IdxPath {
         }
 
         Ok(cur)
+    }
+
+    pub(crate) fn sort_specific_last(left: &IdxPath, right: &IdxPath) -> Ordering {
+        if left.is_empty() && right.is_empty() {
+            return Ordering::Equal;
+        }
+
+        match right.len().cmp(&left.len()) {
+            Ordering::Equal => {
+                let left = &left.0[left.len() - 1];
+                let right = &right.0[right.len() - 1];
+                left.as_array()
+                    .and_then(|l| right.as_array().map(|r| (l, r)))
+                    .map_or(Ordering::Equal, |(l, r)| r.cmp(&l))
+            }
+            other => other,
+        }
     }
 }
 

@@ -24,6 +24,30 @@ fn test_delete() {
 }
 
 #[test]
+fn test_delete_array() {
+    let json = json!({"list": ["one", "two", "three", "four"]});
+    let result = JsonPath::compile("$.list[*]").unwrap().delete(&json);
+
+    assert_eq!(result, json!({"list": []}));
+}
+
+#[test]
+fn test_replace_in_try_replace() {
+    let json = json!({"list": ["BLUE", "ORANGE", "GREEN", "RED"]});
+    let result = JsonPath::compile("$.list[*]").unwrap().try_replace(&json, |_| Some(Value::Null));
+
+    assert_eq!(result, json!({"list": [null, null, null, null]}));
+}
+
+#[test]
+fn test_delete_in_try_replace() {
+    let json = json!({"list": ["BLUE", "ORANGE", "GREEN", "RED"]});
+    let result = JsonPath::compile("$.list[*]").unwrap().try_replace(&json, |_| None);
+
+    assert_eq!(result, json!({"list": []}));
+}
+
+#[test]
 fn array_slice_on_non_overlapping_array() {
     let json = json!(["first", "second", "third"]);
     let result = find("$[7:10]", &json).unwrap();

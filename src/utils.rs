@@ -1,11 +1,10 @@
 use crate::idx::IdxPath;
-use core::cmp::Reverse;
 use serde_json::Value;
 
 pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
-    paths.sort_unstable_by_key(|idx| Reverse(idx.len()));
+    paths.sort_unstable_by(IdxPath::sort_specific_last);
     for path in paths {
         let delete_on = path
             .remove(1)
@@ -27,7 +26,7 @@ pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
 pub fn replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut(&Value) -> Value) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
-    paths.sort_unstable_by_key(|idx| Reverse(idx.len()));
+    paths.sort_unstable_by(IdxPath::sort_specific_last);
     for path in paths {
         let replace_on = path
             .remove(1)
@@ -57,7 +56,7 @@ pub fn try_replace_paths(
 ) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
-    paths.sort_unstable_by_key(|idx| Reverse(idx.len()));
+    paths.sort_unstable_by(IdxPath::sort_specific_last);
     for path in paths {
         let replace_on = path
             .remove(1)
