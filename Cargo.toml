@@ -1,6 +1,6 @@
 [package]
 name = "jsonpath-plus"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 categories = ["parser-implementations", "api-bindings"]
 keywords = ["jsonpath", "json", "query"]
