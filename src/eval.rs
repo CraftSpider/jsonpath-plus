@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
+use crate::error::{JsonTy, ResolveError};
 use serde_json::Value;
 
 #[derive(Clone)]
@@ -20,24 +21,32 @@ impl<'a, T> Hash for RefKey<'a, T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Idx {
-    Int(usize),
-    Name(String),
+    Array(usize),
+    Object(String),
 }
 
 impl Idx {
-    pub fn as_int(&self) -> usize {
+    pub fn is_array(&self) -> bool {
+        matches!(self, Idx::Array(_))
+    }
+
+    pub fn is_object(&self) -> bool {
+        matches!(self, Idx::Object(_))
+    }
+
+    pub fn as_array(&self) -> Option<usize> {
         match self {
-            Idx::Int(u) => *u,
-            _ => panic!("Wrong Idx Type: expected int"),
+            Idx::Array(u) => Some(*u),
+            _ => None,
         }
     }
 
-    pub fn as_string(&self) -> &str {
+    pub fn as_object(&self) -> Option<&str> {
         match self {
-            Idx::Name(s) => s,
-            _ => panic!("Wrong Idx Type: expected string"),
+            Idx::Object(s) => Some(s),
+            _ => None,
         }
     }
 }
@@ -45,9 +54,86 @@ impl Idx {
 impl From<Idx> for Value {
     fn from(idx: Idx) -> Self {
         match idx {
-            Idx::Int(i) => Value::from(i),
-            Idx::Name(str) => Value::from(str),
+            Idx::Array(i) => Value::from(i),
+            Idx::Object(str) => Value::from(str),
         }
+    }
+}
+
+pub struct IdxPath(Vec<Idx>);
+
+impl IdxPath {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn raw_path(&self) -> &[Idx] {
+        &self.0
+    }
+
+    pub fn remove(&self, n: usize) -> IdxPath {
+        if n > self.len() {
+            panic!("Cannot remove {} items from path, path is only {} items long", n, self.len())
+        }
+        IdxPath(self.0[..self.len() - n].to_owned())
+    }
+
+    pub fn resolve_on<'a>(&self, value: &'a Value) -> Result<&'a Value, ResolveError> {
+        let mut cur = value;
+
+        for idx in &self.0 {
+            match idx {
+                Idx::Array(i) => {
+                    cur = cur.as_array()
+                        .ok_or_else(|| ResolveError::mismatched(JsonTy::Array, cur))?
+                        .get(*i)
+                        .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?
+                }
+                Idx::Object(i) => {
+                    cur = cur.as_object()
+                        .ok_or_else(|| ResolveError::mismatched(JsonTy::Object, cur))?
+                        .get(i)
+                        .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?
+                }
+            }
+        }
+
+        Ok(cur)
+    }
+
+    pub fn resolve_on_mut<'a>(&self, value: &'a mut Value) -> Result<&'a mut Value, ResolveError> {
+        let mut cur = value;
+
+        for idx in &self.0 {
+            match idx {
+                Idx::Array(i) => {
+                    let json_ty = JsonTy::from(&*cur);
+                    cur = cur.as_array_mut()
+                        .ok_or(ResolveError::MismatchedTy { expected: JsonTy::Array, actual: json_ty })?
+                        .get_mut(*i)
+                        .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?
+                }
+                Idx::Object(i) => {
+                    let json_ty = JsonTy::from(&*cur);
+                    cur = cur.as_object_mut()
+                        .ok_or(ResolveError::MismatchedTy { expected: JsonTy::Array, actual: json_ty })?
+                        .get_mut(i)
+                        .ok_or_else(|| ResolveError::MissingIdx(idx.clone()))?
+                }
+            }
+        }
+
+        Ok(cur)
+    }
+}
+
+impl From<Vec<Idx>> for IdxPath {
+    fn from(path: Vec<Idx>) -> Self {
+        IdxPath(path)
     }
 }
 
@@ -100,11 +186,11 @@ impl<'a> EvalCtx<'a> {
                 .iter()
                 .enumerate()
                 .find(|&(_, p)| std::ptr::eq(p, val))
-                .map(|(idx, _)| Idx::Int(idx)),
+                .map(|(idx, _)| Idx::Array(idx)),
             Value::Object(m) => m
                 .iter()
                 .find(|&(_, p)| std::ptr::eq(p, val))
-                .map(|(idx, _)| Idx::Name(idx.to_string())),
+                .map(|(idx, _)| Idx::Object(idx.to_string())),
             _ => None,
         }
     }
@@ -131,7 +217,7 @@ impl<'a> EvalCtx<'a> {
             .collect();
     }
 
-    pub fn paths_matched(&self) -> Vec<Vec<Idx>> {
+    pub fn paths_matched(&self) -> Vec<IdxPath> {
         self.cur_matched
             .iter()
             .copied()
@@ -143,7 +229,7 @@ impl<'a> EvalCtx<'a> {
                     cur = p;
                 }
                 out.reverse();
-                out
+                IdxPath(out)
             })
             .collect()
     }

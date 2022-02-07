@@ -85,6 +85,8 @@ pub struct NullLit {
 
 /// A compiled JSON path. Can be used to match against items any number of times, preventing
 /// recompilation of the same pattern many times.
+#[must_use = "A path does nothing on its own, call `find` or `find_str` to evaluate the path on a \
+              value"]
 pub struct Path {
     _dollar: token::Dollar,
     children: Vec<Operator>,

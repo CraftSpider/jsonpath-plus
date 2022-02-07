@@ -20,32 +20,16 @@
 )]
 
 use error::{ParseError, ParseOrJsonError};
-use eval::EvalCtx;
+use eval::{EvalCtx, Idx};
+use utils::{delete_paths, replace_paths};
 
 mod ast;
 pub mod error;
 mod eval;
+mod utils;
 
 pub use ast::Path as JsonPath;
-
-fn resolve_path<'a>(
-    path: &[eval::Idx],
-    val: &'a mut serde_json::Value,
-) -> &'a mut serde_json::Value {
-    use serde_json::Value;
-
-    let mut cur = val;
-
-    for p in path {
-        match cur {
-            Value::Array(v) => cur = &mut v[p.as_int()],
-            Value::Object(m) => cur = &mut m[p.as_string()],
-            _ => unreachable!(),
-        }
-    }
-
-    cur
-}
+use crate::eval::IdxPath;
 
 /// Find a pattern in the provided JSON value. Recompiles the pattern every call, if the same
 /// pattern is used a lot should instead try using [`JsonPath::compile`].
@@ -86,76 +70,63 @@ impl JsonPath {
     }
 
     /// Find this pattern in the provided JSON value
+    #[must_use = "this does not modify the path or provided value"]
     pub fn find<'a>(&self, value: &'a serde_json::Value) -> Vec<&'a serde_json::Value> {
         let mut ctx = EvalCtx::new(value);
         self.eval(&mut ctx);
         ctx.into_matched()
     }
 
-    /// Delete all items matched by this pattern on the provided JSON value, and return the
-    /// resulting object
-    pub fn delete(&self, value: &serde_json::Value) -> serde_json::Value {
-        use serde_json::Value;
-
+    /// Find this pattern in the provided JSON value, and return the shortest paths to all found
+    /// values as a chain of
+    #[must_use = "this does not modify the path or provided value"]
+    pub fn find_paths(&self, value: &serde_json::Value) -> Vec<IdxPath> {
         let mut ctx = EvalCtx::new(value);
         self.eval(&mut ctx);
+        ctx.paths_matched()
+    }
 
-        let paths: Vec<_> = ctx.paths_matched();
-
+    /// Delete all items matched by this pattern on the provided JSON value, and return the
+    /// resulting object
+    #[must_use = "this returns the new value, without modifying the original. To work in-place, \
+                  use `delete_on`"]
+    pub fn delete(&self, value: &serde_json::Value) -> serde_json::Value {
+        let paths = self.find_paths(value);
         let mut out = value.clone();
-
-        for p in paths {
-            let delete_on = resolve_path(&p[..p.len() - 1], &mut out);
-            let last_idx = p.last().expect("Idx should match found item");
-            match delete_on {
-                Value::Array(v) => {
-                    v.remove(last_idx.as_int());
-                }
-                Value::Object(m) => {
-                    m.remove(last_idx.as_string());
-                }
-                _ => unreachable!(),
-            }
-        }
-
+        delete_paths(paths, &mut out);
         out
+    }
+
+    /// Delete all items matched by this pattern on the provided JSON value, operating in-place
+    pub fn delete_on(&self, value: &mut serde_json::Value) {
+        let paths = self.find_paths(value);
+        delete_paths(paths, value);
     }
 
     /// Replace items matched by this pattern on the provided JSON value, filling them with the
     /// value returned by the provided function, then return the resulting object
+    #[must_use = "this returns the new value, without modifying the original. To work in-place, \
+                  use `replace_on`"]
     pub fn replace(
         &self,
         value: &serde_json::Value,
-        mut f: impl FnMut(&serde_json::Value) -> serde_json::Value,
+        f: impl FnMut(&serde_json::Value) -> serde_json::Value,
     ) -> serde_json::Value {
-        use serde_json::Value;
-
-        let mut ctx = EvalCtx::new(value);
-        self.eval(&mut ctx);
-
-        let paths = ctx.paths_matched();
-
+        let paths = self.find_paths(value);
         let mut out = value.clone();
-
-        for p in paths {
-            let replace_on = resolve_path(&p[..p.len() - 1], &mut out);
-            let last_idx = &p[p.len() - 1];
-            match replace_on {
-                Value::Array(v) => {
-                    let last_idx = last_idx.as_int();
-                    let new = f(&v[last_idx]);
-                    v[last_idx] = new;
-                }
-                Value::Object(m) => {
-                    let last_idx = last_idx.as_string();
-                    let new = f(&m[last_idx]);
-                    m[last_idx] = new;
-                }
-                _ => unreachable!(),
-            }
-        }
-
+        replace_paths(paths, &mut out, f);
         out
+    }
+
+    /// Replace items matched by this pattern on the provided JSON value, filling them the value
+    /// returned by the provided function, operating in-place
+    pub fn replace_on(
+        &self,
+        value: &mut serde_json::Value,
+        f: impl FnMut(&serde_json::Value) -> serde_json::Value,
+    ) {
+        let paths = self.find_paths(value);
+        replace_paths(paths, value, f);
     }
 
     /// Find this pattern in the provided JSON string
