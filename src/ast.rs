@@ -23,8 +23,7 @@ impl From<ops::Range<usize>> for Span {
 }
 
 pub struct Ident {
-    #[allow(dead_code)]
-    span: Span,
+    _span: Span,
     val: String,
 }
 

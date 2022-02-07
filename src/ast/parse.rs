@@ -7,7 +7,7 @@ impl Ident {
             .repeated()
             .at_least(1)
             .map_with_span(|val, span| Ident {
-                span: span.into(),
+                _span: span.into(),
                 val: String::from_iter(val),
             })
     }

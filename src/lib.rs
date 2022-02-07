@@ -33,19 +33,18 @@ fn resolve_path<'a>(
     val: &'a mut serde_json::Value,
 ) -> &'a mut serde_json::Value {
     use serde_json::Value;
-    pub struct CurRef<'a, T>(&'a mut T);
 
-    let mut cur = CurRef(val);
+    let mut cur = val;
 
     for p in path {
-        match cur.0 {
-            Value::Array(v) => cur = CurRef(&mut v[p.as_int()]),
-            Value::Object(m) => cur = CurRef(&mut m[p.as_string()]),
+        match cur {
+            Value::Array(v) => cur = &mut v[p.as_int()],
+            Value::Object(m) => cur = &mut m[p.as_string()],
             _ => unreachable!(),
         }
     }
 
-    cur.0
+    cur
 }
 
 /// Find a pattern in the provided JSON value. Recompiles the pattern every call, if the same

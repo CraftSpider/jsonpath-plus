@@ -132,17 +132,15 @@ impl<'a> EvalCtx<'a> {
     }
 
     pub fn paths_matched(&self) -> Vec<Vec<Idx>> {
-        pub struct CurRef<'a, T>(&'a T);
-
         self.cur_matched
             .iter()
             .copied()
             .map(|a| {
-                let mut cur = CurRef(a);
+                let mut cur = a;
                 let mut out = Vec::new();
-                while let Some(p) = self.parent_of(cur.0) {
-                    out.push(self.idx_of(cur.0).unwrap());
-                    cur = CurRef(p);
+                while let Some(p) = self.parent_of(cur) {
+                    out.push(self.idx_of(cur).unwrap());
+                    cur = p;
                 }
                 out.reverse();
                 out
