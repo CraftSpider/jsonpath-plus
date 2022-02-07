@@ -16,7 +16,7 @@ fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
 impl Path {
     pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_>) {
         for op in &self.children {
-            op.eval(ctx)
+            op.eval(ctx);
         }
         if self.tilde.is_some() {
             unimplemented!(
@@ -64,7 +64,7 @@ impl DotIdent {
                 _ => vec![],
             }),
             DotIdent::Parent(_) => {
-                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default())
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
             }
             DotIdent::Name(name) => ctx.apply_matched(|_, a| match a {
                 Value::Object(m) => m.get(name.as_str()).map(|a| vec![a]).unwrap_or_default(),
@@ -102,9 +102,9 @@ fn range(slice: &[Value], start: usize, end: usize) -> &[Value] {
 
 impl StepRange {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        let start = self.start.as_ref().map(|i| i.val).unwrap_or(0);
-        let end = self.end.as_ref().map(|i| i.val).unwrap_or(i64::MAX);
-        let step = self.step.as_ref().map(|i| i.val.get()).unwrap_or(1);
+        let start = self.start.as_ref().map_or(0, |i| i.val);
+        let end = self.end.as_ref().map_or(i64::MAX, |i| i.val);
+        let step = self.step.as_ref().map_or(1, |i| i.val.get());
 
         let (rev, step) = step_handle(step);
 
@@ -122,14 +122,14 @@ impl StepRange {
                 }
             }
             _ => vec![],
-        })
+        });
     }
 }
 
 impl Range {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        let start = self.start.as_ref().map(|i| i.val).unwrap_or(0);
-        let end = self.end.as_ref().map(|i| i.val).unwrap_or(i64::MAX);
+        let start = self.start.as_ref().map_or(0, |i| i.val);
+        let end = self.end.as_ref().map_or(i64::MAX, |i| i.val);
 
         ctx.apply_matched(|_, a| match a {
             Value::Array(v) => {
@@ -139,7 +139,7 @@ impl Range {
                 range(v, start, end).iter().collect()
             }
             _ => vec![],
-        })
+        });
     }
 }
 
@@ -149,7 +149,7 @@ impl UnionComponent {
             UnionComponent::StepRange(step_range) => step_range.eval(ctx),
             UnionComponent::Range(range) => range.eval(ctx),
             UnionComponent::Parent(_) => {
-                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default())
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
             }
             UnionComponent::Path(path) => {
                 path.eval_match(ctx);
@@ -184,7 +184,7 @@ impl BracketInner {
                 _ => vec![],
             }),
             BracketInner::Parent(_) => {
-                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default())
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
             }
             BracketInner::Path(path) => {
                 path.eval_match(ctx);
@@ -228,13 +228,11 @@ impl SubPath {
 
         let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents().clone());
         for op in &self.children {
-            op.eval(&mut new_ctx)
+            op.eval(&mut new_ctx);
         }
         let matched = new_ctx.into_matched();
 
-        if matched.len() != 1 {
-            None
-        } else {
+        if matched.len() == 1 {
             let matched = if self.tilde.is_some() {
                 Cow::Owned(ctx.idx_of(matched[0])?.into())
             } else {
@@ -242,6 +240,8 @@ impl SubPath {
             };
 
             Some(matched)
+        } else {
+            None
         }
     }
 
@@ -256,7 +256,7 @@ impl SubPath {
 
             let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents().clone());
             for op in &self.children {
-                op.eval(&mut new_ctx)
+                op.eval(&mut new_ctx);
             }
             let matched = new_ctx.into_matched();
 
@@ -295,7 +295,7 @@ impl SubPath {
                     _ => vec![],
                 })
                 .collect()
-        })
+        });
     }
 }
 
@@ -307,8 +307,7 @@ impl Filter {
                 .filter(|&a| {
                     self.inner
                         .eval_expr(ctx, a)
-                        .map(|c| c.as_bool() == Some(true))
-                        .unwrap_or(false)
+                        .map_or(false, |c| c.as_bool() == Some(true))
                 })
                 .collect(),
             Value::Object(m) => m
@@ -316,12 +315,11 @@ impl Filter {
                 .filter(|&a| {
                     self.inner
                         .eval_expr(ctx, a)
-                        .map(|c| c.as_bool() == Some(true))
-                        .unwrap_or(false)
+                        .map_or(false, |c| c.as_bool() == Some(true))
                 })
                 .collect(),
             _ => vec![],
-        })
+        });
     }
 }
 
