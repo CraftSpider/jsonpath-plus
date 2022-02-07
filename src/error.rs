@@ -1,7 +1,8 @@
 //! Errors returned by fallible methods
 
+use core::fmt;
+use std::error;
 use std::error::Error;
-use std::{error, fmt};
 
 use crate::Idx;
 use chumsky::error::Simple;

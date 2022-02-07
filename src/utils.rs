@@ -1,6 +1,6 @@
 use crate::idx::IdxPath;
+use core::cmp::Reverse;
 use serde_json::Value;
-use std::cmp::Reverse;
 
 pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children

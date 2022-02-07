@@ -1,5 +1,5 @@
+use core::hash::{Hash, Hasher};
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 
 use crate::idx::{Idx, IdxPath};
 use serde_json::Value;
@@ -9,7 +9,7 @@ pub struct RefKey<'a, T>(&'a T);
 
 impl<'a, T> PartialEq for RefKey<'a, T> {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0, other.0)
+        core::ptr::eq(self.0, other.0)
     }
 }
 
@@ -69,11 +69,11 @@ impl<'a> EvalCtx<'a> {
             Value::Array(v) => v
                 .iter()
                 .enumerate()
-                .find(|&(_, p)| std::ptr::eq(p, val))
+                .find(|&(_, p)| core::ptr::eq(p, val))
                 .map(|(idx, _)| Idx::Array(idx)),
             Value::Object(m) => m
                 .iter()
-                .find(|&(_, p)| std::ptr::eq(p, val))
+                .find(|&(_, p)| core::ptr::eq(p, val))
                 .map(|(idx, _)| Idx::Object(idx.to_string())),
             _ => None,
         }
@@ -88,7 +88,7 @@ impl<'a> EvalCtx<'a> {
     }
 
     pub fn apply_matched(&mut self, f: impl Fn(&Self, &'a Value) -> Vec<&'a Value>) {
-        let cur_matched = std::mem::take(&mut self.cur_matched);
+        let cur_matched = core::mem::take(&mut self.cur_matched);
         self.cur_matched = cur_matched
             .into_iter()
             .flat_map(|i| {

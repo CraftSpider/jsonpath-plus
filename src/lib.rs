@@ -19,7 +19,6 @@
     clippy::unreadable_literal,
     clippy::must_use_candidate
 )]
-
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 use serde_json::Value;

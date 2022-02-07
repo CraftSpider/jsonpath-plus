@@ -1,5 +1,5 @@
 use super::*;
-use std::ops;
+use core::ops;
 
 /// A source span in a path. Can be used to reference the source location of tokens or syntax
 /// structures.
@@ -20,7 +20,10 @@ impl Span {
 
 impl From<ops::Range<usize>> for Span {
     fn from(span: ops::Range<usize>) -> Self {
-        Span { start: span.start, end: span.end }
+        Span {
+            start: span.start,
+            end: span.end,
+        }
     }
 }
 
@@ -71,13 +74,19 @@ impl Spanned for StringContent {
 
 impl Spanned for SingleStringLit {
     fn span(&self) -> Span {
-        self.start.span().join(self.content.span()).join(self.end.span())
+        self.start
+            .span()
+            .join(self.content.span())
+            .join(self.end.span())
     }
 }
 
 impl Spanned for DoubleStringLit {
     fn span(&self) -> Span {
-        self.start.span().join(self.content.span()).join(self.end.span())
+        self.start
+            .span()
+            .join(self.content.span())
+            .join(self.end.span())
     }
 }
 
@@ -138,9 +147,9 @@ impl Spanned for Segment {
         match self {
             Segment::Bracket(b, i) => b.span().join(i.span()),
             Segment::Dot(d, i) => d.span().join(i.span()),
-            Segment::Recursive(r, i) => {
-                i.as_ref().map_or_else(|| r.span(), |i| r.span().join(i.span()))
-            }
+            Segment::Recursive(r, i) => i
+                .as_ref()
+                .map_or_else(|| r.span(), |i| r.span().join(i.span())),
         }
     }
 }
@@ -180,7 +189,7 @@ impl Spanned for RecursiveOp {
     fn span(&self) -> Span {
         match self {
             RecursiveOp::Raw(rs) => rs.span(),
-            RecursiveOp::Bracket(b, s) => b.span().join(s.span())
+            RecursiveOp::Bracket(b, s) => b.span().join(s.span()),
         }
     }
 }
@@ -200,12 +209,10 @@ impl Spanned for UnionComponent {
 
 impl Spanned for StepRange {
     fn span(&self) -> Span {
-        let mut out = self.start
+        let mut out = self
+            .start
             .as_ref()
-            .map_or_else(
-                || self.colon1.span(),
-                |s| s.span().join(self.colon1.span())
-            );
+            .map_or_else(|| self.colon1.span(), |s| s.span().join(self.colon1.span()));
 
         if let Some(end) = &self.end {
             out = out.join(end.span());
@@ -223,12 +230,10 @@ impl Spanned for StepRange {
 
 impl Spanned for Range {
     fn span(&self) -> Span {
-        let mut out = self.start
+        let mut out = self
+            .start
             .as_ref()
-            .map_or_else(
-                || self.colon.span(),
-                |s| s.span().join(self.colon.span())
-            );
+            .map_or_else(|| self.colon.span(), |s| s.span().join(self.colon.span()));
 
         if let Some(end) = &self.end {
             out = out.join(end.span());
@@ -249,7 +254,8 @@ impl Spanned for BracketLit {
 
 impl Spanned for Filter {
     fn span(&self) -> Span {
-        self.question.span()
+        self.question
+            .span()
             .join(self.paren.span())
             .join(self.inner.span())
     }
@@ -262,7 +268,7 @@ impl Spanned for FilterExpr {
             FilterExpr::Binary(lhs, op, rhs) => lhs.span().join(op.span()).join(rhs.span()),
             FilterExpr::Path(sp) => sp.span(),
             FilterExpr::Lit(el) => el.span(),
-            FilterExpr::Parens(p, expr) => p.span().join(expr.span())
+            FilterExpr::Parens(p, expr) => p.span().join(expr.span()),
         }
     }
 }

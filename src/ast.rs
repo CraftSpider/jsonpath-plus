@@ -4,7 +4,7 @@
 
 #![cfg_attr(not(feature = "spanned"), allow(dead_code))]
 
-use std::num::NonZeroI64;
+use core::num::NonZeroI64;
 
 mod eval;
 mod parse;

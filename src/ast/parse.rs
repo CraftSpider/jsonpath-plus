@@ -210,11 +210,7 @@ impl Range {
             .or_not()
             .then(token::Colon::parser())
             .then(IntLit::parser().or_not())
-            .map(|((start, colon), end)| Range {
-                start,
-                colon,
-                end,
-            })
+            .map(|((start, colon), end)| Range { start, colon, end })
     }
 }
 
