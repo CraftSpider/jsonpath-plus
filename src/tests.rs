@@ -3,10 +3,24 @@ use serde_json::{json, Value};
 
 #[test]
 fn test_replace() {
-    let input = json!({"list": ["red", "green", "blue"]});
-    let path = JsonPath::compile("$.list[*]").expect("jsonpath is valid");
-    let output = path.replace(&input, |_| json!("black"));
-    assert_eq!(output, json!({"list": ["black", "black", "black"]}))
+    let json = json!({"list": ["red", "green", "blue"]});
+    let path = JsonPath::compile("$.list[*]").unwrap();
+    let result = path.replace(&json, |_| json!("black"));
+
+    assert_eq!(result, json!({"list": ["black", "black", "black"]}));
+}
+
+#[test]
+fn test_delete() {
+    let json =
+        json!({"inner": {"list": ["one", "two", "three"]}, "outer": ["one", "two", "three"]});
+    let path = JsonPath::compile("$.inner.list[1]").unwrap();
+    let result = path.delete(&json);
+
+    assert_eq!(
+        result,
+        json!({"inner": {"list": ["one", "three"]}, "outer": ["one", "two", "three"]})
+    );
 }
 
 #[test]

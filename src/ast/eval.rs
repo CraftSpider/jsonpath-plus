@@ -59,7 +59,7 @@ impl DotIdent {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
             DotIdent::Wildcard(_) => ctx.apply_matched(|_, a| match a {
-                Value::Array(a) => a.iter().collect(),
+                Value::Array(v) => v.iter().collect(),
                 Value::Object(m) => m.values().collect(),
                 _ => vec![],
             }),
