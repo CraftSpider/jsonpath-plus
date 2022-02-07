@@ -44,6 +44,14 @@ pub struct BoolLit {
     val: bool,
 }
 
+impl BoolLit {
+    /// Get the boolean representation of this literal
+    #[must_use]
+    pub fn as_bool(&self) -> bool {
+        self.val
+    }
+}
+
 /// A null literal, the keyword `null`
 pub struct NullLit {
     #[cfg(feature = "spanned")]
@@ -57,11 +65,27 @@ pub struct IntLit {
     val: i64,
 }
 
+impl IntLit {
+    /// Get the integer representation of this literal
+    #[must_use]
+    pub fn as_int(&self) -> i64 {
+        self.val
+    }
+}
+
 /// A non-zero integer literal, any integer not `0`
 pub struct NonZeroIntLit {
     #[cfg(feature = "spanned")]
     span: Span,
     val: NonZeroI64,
+}
+
+impl NonZeroIntLit {
+    /// Get the integer representation of this literal
+    #[must_use]
+    pub fn as_int(&self) -> NonZeroI64 {
+        self.val
+    }
 }
 
 struct StringContent {
@@ -77,11 +101,27 @@ pub struct SingleStringLit {
     end: token::SingleQuote,
 }
 
-///  A quote-delimite string
+impl SingleStringLit {
+    /// Get the content of this string literal
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.content.val
+    }
+}
+
+/// A quote-delimite string
 pub struct DoubleStringLit {
     start: token::DoubleQuote,
     content: StringContent,
     end: token::DoubleQuote,
+}
+
+impl DoubleStringLit {
+    /// Get the content of this string literal
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.content.val
+    }
 }
 
 /// Any string literal, whether single or double quote delimited
@@ -94,7 +134,8 @@ pub enum StringLit {
 
 impl StringLit {
     /// Get the content of this string literal
-    fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         match self {
             StringLit::Single(s) => &s.content.val,
             StringLit::Double(s) => &s.content.val,
@@ -211,6 +252,24 @@ pub struct StepRange {
 }
 
 impl StepRange {
+    /// Get the start literal token for this range
+    #[must_use]
+    pub fn start_lit(&self) -> Option<&IntLit> {
+        self.start.as_ref()
+    }
+
+    /// Get the end literal token for this range
+    #[must_use]
+    pub fn end_lit(&self) -> Option<&IntLit> {
+        self.end.as_ref()
+    }
+
+    /// Get the step literal token for this range
+    #[must_use]
+    pub fn step_lit(&self) -> Option<&NonZeroIntLit> {
+        self.step.as_ref()
+    }
+
     /// Get the user-provided literal start for this range
     #[must_use]
     pub fn start(&self) -> Option<i64> {
@@ -238,6 +297,18 @@ pub struct Range {
 }
 
 impl Range {
+    /// Get the start literal token for this range
+    #[must_use]
+    pub fn start_lit(&self) -> Option<&IntLit> {
+        self.start.as_ref()
+    }
+
+    /// Get the end literal token for this range
+    #[must_use]
+    pub fn end_lit(&self) -> Option<&IntLit> {
+        self.end.as_ref()
+    }
+
     /// Get the user-provided literal start for this range
     #[must_use]
     pub fn start(&self) -> Option<i64> {

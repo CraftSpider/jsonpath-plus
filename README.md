@@ -7,6 +7,9 @@
 
 An implementation of the JSONPath A spec in Rust, with several extensions added on.
 
+This library also supports retrieving AST analysis of compiled paths, so users
+may implement syntax highlighting or nice error reporting on top of it.
+
 ## Extensions
 
 - Parent selector `^`, used as `$.a.b.^` or `$['a']['b'][^]`. Matches the parent of
