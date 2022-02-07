@@ -1,7 +1,6 @@
-
-use super::{Span, Input, Error};
-use chumsky::Parser;
+use super::{Error, Input, Span};
 use chumsky::primitive::just;
+use chumsky::Parser;
 
 // 'Wrapping' tokens
 
@@ -26,10 +25,10 @@ macro_rules! wrapping_tokens {
     }
 
 wrapping_tokens! {
-        Bracket('[', ']');
-        Paren('(', ')');
-        // Brace('{', '}');
-    }
+    Bracket('[', ']');
+    Paren('(', ')');
+    // Brace('{', '}');
+}
 
 // Simple tokens
 
@@ -49,28 +48,28 @@ macro_rules! simple_tokens {
     }
 
 simple_tokens! {
-        At('@');
-        Bang('!');
-        Caret('^');
-        Colon(':');
-        Dash('-');
-        Dollar('$');
-        Dot('.');
-        DotDot("..");
-        DoubleAnd("&&");
-        DoublePipe("||");
-        DoubleQuote('"');
-        EqEq("==");
-        GreaterEq(">=");
-        GreaterThan('>');
-        // LeftSlash('\\');
-        LessEq("<=");
-        LessThan('<');
-        Percent('%');
-        Plus('+');
-        Question('?');
-        RightSlash('/');
-        SingleQuote('\'');
-        Star('*');
-        Tilde('~');
-    }
+    At('@');
+    Bang('!');
+    Caret('^');
+    Colon(':');
+    Dash('-');
+    Dollar('$');
+    Dot('.');
+    DotDot("..");
+    DoubleAnd("&&");
+    DoublePipe("||");
+    DoubleQuote('"');
+    EqEq("==");
+    GreaterEq(">=");
+    GreaterThan('>');
+    // LeftSlash('\\');
+    LessEq("<=");
+    LessThan('<');
+    Percent('%');
+    Plus('+');
+    Question('?');
+    RightSlash('/');
+    SingleQuote('\'');
+    Star('*');
+    Tilde('~');
+}

@@ -23,12 +23,15 @@ use error::{ParseError, ParseOrJsonError};
 use eval::EvalCtx;
 
 mod ast;
-mod eval;
 pub mod error;
+mod eval;
 
 pub use ast::Path as JsonPath;
 
-fn resolve_path<'a>(path: &[eval::Idx], val: &'a mut serde_json::Value) -> &'a mut serde_json::Value {
+fn resolve_path<'a>(
+    path: &[eval::Idx],
+    val: &'a mut serde_json::Value,
+) -> &'a mut serde_json::Value {
     use serde_json::Value;
     pub struct CurRef<'a, T>(&'a mut T);
 
@@ -38,7 +41,7 @@ fn resolve_path<'a>(path: &[eval::Idx], val: &'a mut serde_json::Value) -> &'a m
         match cur.0 {
             Value::Array(v) => cur = CurRef(&mut v[p.as_int()]),
             Value::Object(m) => cur = CurRef(&mut m[p.as_string()]),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -51,7 +54,10 @@ fn resolve_path<'a>(path: &[eval::Idx], val: &'a mut serde_json::Value) -> &'a m
 /// # Errors
 ///
 /// - If the provided pattern fails to parse as a valid JSON path
-pub fn find<'a>(pattern: &str, value: &'a serde_json::Value) -> Result<Vec<&'a serde_json::Value>, ParseError> {
+pub fn find<'a>(
+    pattern: &str,
+    value: &'a serde_json::Value,
+) -> Result<Vec<&'a serde_json::Value>, ParseError> {
     Ok(JsonPath::compile(pattern)?.find(value))
 }
 
@@ -118,7 +124,11 @@ impl JsonPath {
 
     /// Replace items matched by this pattern on the provided JSON value, filling them with the
     /// value returned by the provided function, then return the resulting object
-    pub fn replace(&self, value: &serde_json::Value, mut f: impl FnMut(&serde_json::Value) -> serde_json::Value) -> serde_json::Value {
+    pub fn replace(
+        &self,
+        value: &serde_json::Value,
+        mut f: impl FnMut(&serde_json::Value) -> serde_json::Value,
+    ) -> serde_json::Value {
         use serde_json::Value;
 
         let mut ctx = EvalCtx::new(value);
@@ -174,7 +184,11 @@ impl JsonPath {
     /// # Errors
     ///
     /// - If the provided value fails to deserialize
-    pub fn replace_str(&self, str: &str, f: impl FnMut(&serde_json::Value) -> serde_json::Value) -> Result<serde_json::Value, serde_json::Error> {
+    pub fn replace_str(
+        &self,
+        str: &str,
+        f: impl FnMut(&serde_json::Value) -> serde_json::Value,
+    ) -> Result<serde_json::Value, serde_json::Error> {
         let val = serde_json::from_str(str)?;
         Ok(self.replace(&val, f))
     }

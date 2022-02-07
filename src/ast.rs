@@ -1,8 +1,8 @@
 use std::num::NonZeroI64;
 use std::ops;
 
-mod parse;
 mod eval;
+mod parse;
 mod token;
 
 // Aliases
@@ -81,7 +81,7 @@ pub struct BoolLit {
 }
 
 pub struct NullLit {
-    _span: Span
+    _span: Span,
 }
 
 /// A compiled JSON path. Can be used to match against items any number of times, preventing

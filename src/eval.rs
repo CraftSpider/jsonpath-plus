@@ -30,14 +30,14 @@ impl Idx {
     pub fn as_int(&self) -> usize {
         match self {
             Idx::Int(u) => *u,
-            _ => panic!("Wrong Idx Type: expected int")
+            _ => panic!("Wrong Idx Type: expected int"),
         }
     }
 
     pub fn as_string(&self) -> &str {
         match self {
             Idx::Name(s) => s,
-            _ => panic!("Wrong Idx Type: expected string")
+            _ => panic!("Wrong Idx Type: expected string"),
         }
     }
 }
@@ -66,7 +66,10 @@ impl<'a> EvalCtx<'a> {
         }
     }
 
-    pub fn new_parents(root: &'a Value, parents: HashMap<RefKey<'a, Value>, &'a Value>) -> EvalCtx<'a> {
+    pub fn new_parents(
+        root: &'a Value,
+        parents: HashMap<RefKey<'a, Value>, &'a Value>,
+    ) -> EvalCtx<'a> {
         EvalCtx {
             root,
             cur_matched: vec![root],
@@ -93,14 +96,16 @@ impl<'a> EvalCtx<'a> {
     pub fn idx_of(&self, val: &'a Value) -> Option<Idx> {
         let parent = self.parent_of(val)?;
         match parent {
-            Value::Array(v) => v.iter()
+            Value::Array(v) => v
+                .iter()
                 .enumerate()
                 .find(|&(_, p)| std::ptr::eq(p, val))
                 .map(|(idx, _)| Idx::Int(idx)),
-            Value::Object(m) => m.iter()
+            Value::Object(m) => m
+                .iter()
                 .find(|&(_, p)| std::ptr::eq(p, val))
                 .map(|(idx, _)| Idx::Name(idx.to_string())),
-            _ => None
+            _ => None,
         }
     }
 
@@ -118,8 +123,9 @@ impl<'a> EvalCtx<'a> {
             .into_iter()
             .flat_map(|i| {
                 let results = f(self, i);
-                results.iter()
-                    .for_each(|a| { self.parents.insert(RefKey(*a), i); });
+                results.iter().for_each(|a| {
+                    self.parents.insert(RefKey(*a), i);
+                });
                 results
             })
             .collect();
@@ -128,8 +134,7 @@ impl<'a> EvalCtx<'a> {
     pub fn paths_matched(&self) -> Vec<Vec<Idx>> {
         pub struct CurRef<'a, T>(&'a T);
 
-        self
-            .cur_matched
+        self.cur_matched
             .iter()
             .copied()
             .map(|a| {

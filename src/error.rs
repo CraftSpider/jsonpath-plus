@@ -1,7 +1,7 @@
 //! Errors returned by fallible methods
 
-use std::{error, fmt};
 use std::error::Error;
+use std::{error, fmt};
 
 use chumsky::error::Simple;
 
@@ -14,7 +14,10 @@ pub struct ParseError {
 
 impl ParseError {
     pub(crate) fn new(src: &str, errs: Vec<Simple<char>>) -> ParseError {
-        ParseError { src: src.to_string(), errs }
+        ParseError {
+            src: src.to_string(),
+            errs,
+        }
     }
 }
 
