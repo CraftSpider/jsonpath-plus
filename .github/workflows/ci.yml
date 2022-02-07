@@ -21,12 +21,14 @@ jobs:
       - name: Check (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: check --no-default-features
+          command: check
+          args: --no-default-features
 
       - name: Check (all features)
         uses: actions-rs/cargo@v1
         with:
-          command: check --all-features
+          command: check
+          args: --all-features
 
   lints:
     name: Jsonpath Lints
@@ -52,12 +54,14 @@ jobs:
       - name: Run clippy (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: clippy --no-default-features
+          command: clippy
+          args: --no-default-features
 
       - name: Run clippy (all features)
         uses: actions-rs/cargo@v1
         with:
-          command: clippy --all-features
+          command: clippy
+          args: --all-features
 
   test:
     name: Jsonpath Tests
@@ -76,9 +80,11 @@ jobs:
       - name: Run tests (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: test --no-defeault-features
+          command: test
+          args: --no-default-features
 
       - name: Run tests (no features)
         uses: actions-rs/cargo@v1
         with:
-          command: test --all-features
+          command: test
+          args: --all-features
