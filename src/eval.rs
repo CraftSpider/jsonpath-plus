@@ -20,6 +20,7 @@ impl<'a, T> Hash for RefKey<'a, T> {
     }
 }
 
+#[derive(Debug)]
 pub enum Idx {
     Int(usize),
     Name(String),
@@ -29,14 +30,14 @@ impl Idx {
     pub fn as_int(&self) -> usize {
         match self {
             Idx::Int(u) => *u,
-            _ => panic!()
+            _ => panic!("Wrong Idx Type: expected int")
         }
     }
 
     pub fn as_string(&self) -> &str {
         match self {
             Idx::Name(s) => s,
-            _ => panic!()
+            _ => panic!("Wrong Idx Type: expected string")
         }
     }
 }
@@ -138,6 +139,7 @@ impl<'a> EvalCtx<'a> {
                     out.push(self.idx_of(cur.0).unwrap());
                     cur = CurRef(p);
                 }
+                out.reverse();
                 out
             })
             .collect()

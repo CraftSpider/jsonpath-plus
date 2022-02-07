@@ -2,6 +2,14 @@ use serde_json::{json, Value};
 use super::*;
 
 #[test]
+fn test_replace() {
+    let input = json!({"list": ["red", "green", "blue"]});
+    let path = JsonPath::compile("$.list[*]").expect("jsonpath is valid");
+    let output = path.replace(&input, |_| json!("black"));
+    assert_eq!(output, json!({"list": ["black", "black", "black"]}))
+}
+
+#[test]
 fn array_slice_on_non_overlapping_array() {
     let json = json!(["first", "second", "third"]);
     let result = find("$[7:10]", &json)
