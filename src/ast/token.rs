@@ -18,7 +18,7 @@ macro_rules! wrapping_tokens {
             impl $name {
                 #[cfg(feature = "spanned")]
                 pub(super) fn parser<T>(item: impl Parser<Input, T, Error = Error>) -> impl Parser<Input, (Self, T), Error = Error> {
-                    item.delimited_by($start, $end)
+                    item.delimited_by(just($start), just($end))
                         .map_with_span(|inner, span| {
                             let start = span.start..(span.start + 1);
                             let end = (span.end - 1)..span.end;

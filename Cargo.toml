@@ -1,6 +1,6 @@
 [package]
 name = "jsonpath-plus"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 categories = ["parser-implementations", "api-bindings"]
 keywords = ["jsonpath", "json", "query"]
@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/CraftSpider/jsonpath-plus"
 
 [dependencies]
-chumsky = "0.7"
+chumsky = { version = "0.8", default-features = false }
 serde_json = "1.0"
 
 [features]
