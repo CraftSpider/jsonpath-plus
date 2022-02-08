@@ -2,7 +2,7 @@ use core::hash::{Hash, Hasher};
 use std::collections::HashMap;
 
 use crate::idx::{Idx, IdxPath};
-use serde_json::Value;
+use crate::json::{Json, JsonArray, JsonObject, JsonRef};
 
 #[derive(Clone)]
 pub struct RefKey<'a, T>(&'a T);
@@ -21,14 +21,14 @@ impl<'a, T> Hash for RefKey<'a, T> {
     }
 }
 
-pub struct EvalCtx<'a> {
-    root: &'a Value,
-    cur_matched: Vec<&'a Value>,
-    parents: HashMap<RefKey<'a, Value>, &'a Value>,
+pub struct EvalCtx<'a, T: Json> {
+    root: &'a T,
+    cur_matched: Vec<&'a T>,
+    parents: HashMap<RefKey<'a, T>, &'a T>,
 }
 
-impl<'a> EvalCtx<'a> {
-    pub fn new(root: &'a Value) -> EvalCtx<'a> {
+impl<'a, T: Json> EvalCtx<'a, T> {
+    pub fn new(root: &'a T) -> EvalCtx<'a, T> {
         EvalCtx {
             root,
             cur_matched: vec![root],
@@ -37,9 +37,9 @@ impl<'a> EvalCtx<'a> {
     }
 
     pub fn new_parents(
-        root: &'a Value,
-        parents: HashMap<RefKey<'a, Value>, &'a Value>,
-    ) -> EvalCtx<'a> {
+        root: &'a T,
+        parents: HashMap<RefKey<'a, T>, &'a T>,
+    ) -> EvalCtx<'a, T> {
         EvalCtx {
             root,
             cur_matched: vec![root],
@@ -47,7 +47,7 @@ impl<'a> EvalCtx<'a> {
         }
     }
 
-    pub fn child_ctx(&self) -> EvalCtx<'a> {
+    pub fn child_ctx(&self) -> EvalCtx<'a, T> {
         EvalCtx {
             root: self.root,
             cur_matched: self.cur_matched.clone(),
@@ -55,23 +55,23 @@ impl<'a> EvalCtx<'a> {
         }
     }
 
-    pub fn root(&self) -> &'a Value {
+    pub fn root(&self) -> &'a T {
         self.root
     }
 
-    pub fn all_parents(&self) -> &HashMap<RefKey<'a, Value>, &'a Value> {
+    pub fn all_parents(&self) -> &HashMap<RefKey<'a, T>, &'a T> {
         &self.parents
     }
 
-    pub fn idx_of(&self, val: &'a Value) -> Option<Idx> {
+    pub fn idx_of(&self, val: &'a T) -> Option<Idx> {
         let parent = self.parent_of(val)?;
-        match parent {
-            Value::Array(v) => v
+        match parent.as_ref() {
+            JsonRef::Array(v) => v
                 .iter()
                 .enumerate()
                 .find(|&(_, p)| core::ptr::eq(p, val))
                 .map(|(idx, _)| Idx::Array(idx)),
-            Value::Object(m) => m
+            JsonRef::Object(m) => m
                 .iter()
                 .find(|&(_, p)| core::ptr::eq(p, val))
                 .map(|(idx, _)| Idx::Object(idx.to_string())),
@@ -79,20 +79,20 @@ impl<'a> EvalCtx<'a> {
         }
     }
 
-    pub fn parent_of(&self, val: &'a Value) -> Option<&'a Value> {
+    pub fn parent_of(&self, val: &'a T) -> Option<&'a T> {
         self.parents.get(&RefKey(val)).copied()
     }
 
-    fn parents_recur(&mut self, value: &'a Value) {
-        match value {
-            Value::Array(v) => {
-                for child in v {
+    fn parents_recur(&mut self, value: &'a T) {
+        match value.as_ref() {
+            JsonRef::Array(v) => {
+                for child in v.iter() {
                     self.parents.entry(RefKey(child)).or_insert(value);
                     self.parents_recur(child);
                 }
             }
-            Value::Object(m) => {
-                for (_, child) in m {
+            JsonRef::Object(m) => {
+                for child in m.values() {
                     self.parents.entry(RefKey(child)).or_insert(value);
                     self.parents_recur(child);
                 }
@@ -108,11 +108,11 @@ impl<'a> EvalCtx<'a> {
             .for_each(|v| self.parents_recur(v));
     }
 
-    pub fn set_matched(&mut self, matched: Vec<&'a Value>) {
+    pub fn set_matched(&mut self, matched: Vec<&'a T>) {
         self.cur_matched = matched;
     }
 
-    pub fn apply_matched(&mut self, f: impl Fn(&Self, &'a Value) -> Vec<&'a Value>) {
+    pub fn apply_matched(&mut self, f: impl Fn(&Self, &'a T) -> Vec<&'a T>) {
         let cur_matched = core::mem::take(&mut self.cur_matched);
         self.cur_matched = cur_matched
             .into_iter()
@@ -143,7 +143,7 @@ impl<'a> EvalCtx<'a> {
             .collect()
     }
 
-    pub fn into_matched(self) -> Vec<&'a Value> {
+    pub fn into_matched(self) -> Vec<&'a T> {
         self.cur_matched
     }
 }

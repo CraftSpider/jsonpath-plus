@@ -4,9 +4,10 @@ use core::fmt;
 use std::error;
 use std::error::Error;
 
-use crate::Idx;
+use crate::{Idx, Json};
 use chumsky::error::Simple;
 use serde_json::Value;
+use crate::json::JsonRef;
 
 /// Error returned by a failure to parse a provided JSON Path
 #[derive(Debug)]
@@ -107,15 +108,15 @@ impl fmt::Display for JsonTy {
     }
 }
 
-impl From<&Value> for JsonTy {
-    fn from(val: &Value) -> Self {
-        match val {
-            Value::Null => JsonTy::Null,
-            Value::Bool(_) => JsonTy::Bool,
-            Value::Number(_) => JsonTy::Number,
-            Value::String(_) => JsonTy::String,
-            Value::Array(_) => JsonTy::Array,
-            Value::Object(_) => JsonTy::Object,
+impl<T: Json> From<&T> for JsonTy {
+    fn from(val: &T) -> Self {
+        match val.as_ref() {
+            JsonRef::Null => JsonTy::Null,
+            JsonRef::Bool(_) => JsonTy::Bool,
+            JsonRef::Number(_) => JsonTy::Number,
+            JsonRef::String(_) => JsonTy::String,
+            JsonRef::Array(_) => JsonTy::Array,
+            JsonRef::Object(_) => JsonTy::Object,
         }
     }
 }

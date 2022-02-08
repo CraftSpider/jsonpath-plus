@@ -13,6 +13,8 @@ repository = "https://github.com/CraftSpider/jsonpath-plus"
 [dependencies]
 chumsky = { version = "0.8", default-features = false }
 serde_json = "1.0"
+json = "0.12"
+json_minimal = "0.1"
 
 [features]
 # Whether the parsed paths should preserve token spans referencing where in the provided path they came from

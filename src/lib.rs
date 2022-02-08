@@ -33,9 +33,11 @@ pub mod error;
 mod eval;
 pub mod idx;
 mod utils;
+mod json;
 
 #[doc(inline)]
 pub use ast::Path as JsonPath;
+use crate::json::Json;
 
 /// Find a pattern in the provided JSON value. Recompiles the pattern every call, if the same
 /// pattern is used a lot should instead try using [`JsonPath::compile`].
@@ -43,7 +45,7 @@ pub use ast::Path as JsonPath;
 /// # Errors
 ///
 /// - If the provided pattern fails to parse as a valid JSON path
-pub fn find<'a>(pattern: &str, value: &'a Value) -> Result<Vec<&'a Value>, ParseError> {
+pub fn find<'a, T: Json>(pattern: &str, value: &'a T) -> Result<Vec<&'a T>, ParseError> {
     Ok(JsonPath::compile(pattern)?.find(value))
 }
 
@@ -74,7 +76,7 @@ impl JsonPath {
 
     /// Find this pattern in the provided JSON value
     #[must_use = "this does not modify the path or provided value"]
-    pub fn find<'a>(&self, value: &'a Value) -> Vec<&'a Value> {
+    pub fn find<'a, T: Json>(&self, value: &'a T) -> Vec<&'a T> {
         let mut ctx = EvalCtx::new(value);
         self.eval(&mut ctx);
         ctx.into_matched()
@@ -83,7 +85,7 @@ impl JsonPath {
     /// Find this pattern in the provided JSON value, and return the shortest paths to all found
     /// values as a chain of indices
     #[must_use = "this does not modify the path or provided value"]
-    pub fn find_paths(&self, value: &Value) -> Vec<IdxPath> {
+    pub fn find_paths<T: Json>(&self, value: &T) -> Vec<IdxPath> {
         let mut ctx = EvalCtx::new(value);
         self.eval(&mut ctx);
         ctx.paths_matched()
@@ -93,7 +95,7 @@ impl JsonPath {
     /// resulting object
     #[must_use = "this returns the new value, without modifying the original. To work in-place, \
                   use `delete_on`"]
-    pub fn delete(&self, value: &Value) -> Value {
+    pub fn delete<T: Json>(&self, value: &T) -> T {
         let paths = self.find_paths(value);
         let mut out = value.clone();
         delete_paths(paths, &mut out);
@@ -101,7 +103,7 @@ impl JsonPath {
     }
 
     /// Delete all items matched by this pattern on the provided JSON value, operating in-place
-    pub fn delete_on(&self, value: &mut Value) {
+    pub fn delete_on<T: Json>(&self, value: &mut T) {
         let paths = self.find_paths(value);
         delete_paths(paths, value);
     }
@@ -110,7 +112,7 @@ impl JsonPath {
     /// value returned by the provided function, then return the resulting object
     #[must_use = "this returns the new value, without modifying the original. To work in-place, \
                   use `replace_on`"]
-    pub fn replace(&self, value: &Value, f: impl FnMut(&Value) -> Value) -> Value {
+    pub fn replace<T: Json>(&self, value: &T, f: impl FnMut(&T) -> T) -> T {
         let paths = self.find_paths(value);
         let mut out = value.clone();
         replace_paths(paths, &mut out, f);
@@ -119,7 +121,7 @@ impl JsonPath {
 
     /// Replace items matched by this pattern on the provided JSON value, filling them the value
     /// returned by the provided function, operating in-place
-    pub fn replace_on(&self, value: &mut Value, f: impl FnMut(&Value) -> Value) {
+    pub fn replace_on<T: Json>(&self, value: &mut T, f: impl FnMut(&T) -> T) {
         let paths = self.find_paths(value);
         replace_paths(paths, value, f);
     }
@@ -129,7 +131,7 @@ impl JsonPath {
     /// then returns the resulting object
     #[must_use = "this returns the new value, without modifying the original. To work in-place, \
                   use `try_replace_on`"]
-    pub fn try_replace(&self, value: &Value, f: impl FnMut(&Value) -> Option<Value>) -> Value {
+    pub fn try_replace<T: Json>(&self, value: &T, f: impl FnMut(&T) -> Option<T>) -> T {
         let paths = self.find_paths(value);
         let mut out = value.clone();
         try_replace_paths(paths, &mut out, f);
@@ -139,7 +141,7 @@ impl JsonPath {
     /// Replace or delete items matched by this pattern on the provided JSON value. Replaces if the
     /// provided method returns `Some`, deletes if the provided method returns `None`. This method
     /// operates in-place on the provided value
-    pub fn try_replace_on(&self, value: &mut Value, f: impl FnMut(&Value) -> Option<Value>) {
+    pub fn try_replace_on<T: Json>(&self, value: &mut T, f: impl FnMut(&T) -> Option<T>) {
         let paths = self.find_paths(value);
         try_replace_paths(paths, value, f);
     }

@@ -3,6 +3,8 @@
 use crate::error::{JsonTy, ResolveError};
 use core::cmp::Ordering;
 use serde_json::Value;
+use crate::Json;
+use crate::json::{JsonArray, JsonObject};
 
 /// An index on a JSON object, either an integer index on an array or a string index on an object
 #[derive(Clone, Debug)]
@@ -41,15 +43,6 @@ impl Idx {
         match self {
             Idx::Object(s) => Some(s),
             _ => None,
-        }
-    }
-}
-
-impl From<Idx> for Value {
-    fn from(idx: Idx) -> Self {
-        match idx {
-            Idx::Array(i) => Value::from(i),
-            Idx::Object(str) => Value::from(str),
         }
     }
 }
@@ -133,7 +126,7 @@ impl IdxPath {
     /// # Errors
     ///
     /// - If the path cannot be resolved
-    pub fn resolve_on_mut<'a>(&self, value: &'a mut Value) -> Result<&'a mut Value, ResolveError> {
+    pub fn resolve_on_mut<'a, T: Json>(&self, value: &'a mut T) -> Result<&'a mut T, ResolveError> {
         let mut cur = value;
 
         for idx in &self.0 {

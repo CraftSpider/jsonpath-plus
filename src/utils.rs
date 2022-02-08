@@ -1,7 +1,8 @@
 use crate::idx::IdxPath;
-use serde_json::Value;
+use crate::Json;
+use crate::json::{JsonArray, JsonMut, JsonObject};
 
-pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
+pub fn delete_paths<T: Json>(mut paths: Vec<IdxPath>, out: &mut T) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
     paths.sort_unstable_by(IdxPath::sort_specific_last);
@@ -11,11 +12,11 @@ pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
             .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
-        match delete_on {
-            Value::Array(v) => {
+        match delete_on.as_mut() {
+            JsonMut::Array(v) => {
                 v.remove(last_idx.as_array().expect("Provided path should resolve"));
             }
-            Value::Object(m) => {
+            JsonMut::Object(m) => {
                 m.remove(last_idx.as_object().expect("Provided path should resolve"));
             }
             _ => unreachable!(),
@@ -23,7 +24,7 @@ pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
     }
 }
 
-pub fn replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut(&Value) -> Value) {
+pub fn replace_paths<T: Json>(mut paths: Vec<IdxPath>, out: &mut T, mut f: impl FnMut(&T) -> T) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
     paths.sort_unstable_by(IdxPath::sort_specific_last);
@@ -33,26 +34,26 @@ pub fn replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut
             .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
-        match replace_on {
-            Value::Array(v) => {
+        match replace_on.as_mut() {
+            JsonMut::Array(v) => {
                 let last_idx = last_idx.as_array().expect("Provided path should resolve");
-                let new = f(&v[last_idx]);
-                v[last_idx] = new;
+                let new = f(&v.get(last_idx).unwrap());
+                *v.get_mut(last_idx).unwrap() = new;
             }
-            Value::Object(m) => {
+            JsonMut::Object(m) => {
                 let last_idx = last_idx.as_object().expect("Provided path should resolve");
-                let new = f(&m[last_idx]);
-                m[last_idx] = new;
+                let new = f(&m.get(last_idx).unwrap());
+                *m.get_mut(last_idx).unwrap() = new;
             }
             _ => unreachable!(),
         }
     }
 }
 
-pub fn try_replace_paths(
+pub fn try_replace_paths<T: Json>(
     mut paths: Vec<IdxPath>,
-    out: &mut Value,
-    mut f: impl FnMut(&Value) -> Option<Value>,
+    out: &mut T,
+    mut f: impl FnMut(&T) -> Option<T>,
 ) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children
     // of other paths, they get resolved first and don't cause panics
@@ -63,22 +64,22 @@ pub fn try_replace_paths(
             .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
-        match replace_on {
-            Value::Array(v) => {
+        match replace_on.as_mut() {
+            JsonMut::Array(v) => {
                 let last_idx = last_idx.as_array().expect("Provided path should resolve");
-                let new = f(&v[last_idx]);
+                let new = f(v.get(last_idx).unwrap());
                 match new {
-                    Some(new) => v[last_idx] = new,
+                    Some(new) => *v.get_mut(last_idx).unwrap() = new,
                     None => {
                         v.remove(last_idx);
                     }
                 }
             }
-            Value::Object(m) => {
+            JsonMut::Object(m) => {
                 let last_idx = last_idx.as_object().expect("Provided path should resolve");
-                let new = f(&m[last_idx]);
+                let new = f(m.get(last_idx).unwrap());
                 match new {
-                    Some(new) => m[last_idx] = new,
+                    Some(new) => *m.get_mut(last_idx).unwrap() = new,
                     None => {
                         m.remove(last_idx);
                     }

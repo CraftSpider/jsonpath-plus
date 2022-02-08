@@ -2,19 +2,19 @@ use super::*;
 use crate::eval::EvalCtx;
 use std::borrow::Cow;
 
-use serde_json::Value;
+use crate::json::{Json, JsonArray, JsonObject, JsonNumber, JsonRef};
 
-fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
+fn flatten_recur<'a, T: Json>(collect: &mut Vec<&'a T>, a: &'a T) {
     collect.push(a);
-    match a {
-        Value::Array(v) => v.iter().for_each(|a| flatten_recur(collect, a)),
-        Value::Object(m) => m.values().for_each(|a| flatten_recur(collect, a)),
+    match a.as_ref() {
+        JsonRef::Array(v) => v.iter().for_each(|a| flatten_recur(collect, a)),
+        JsonRef::Object(m) => m.values().for_each(|a| flatten_recur(collect, a)),
         _ => (),
     }
 }
 
 impl Path {
-    pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    pub(crate) fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         for op in &self.segments {
             op.eval(ctx);
         }
@@ -28,7 +28,7 @@ impl Path {
 }
 
 impl Segment {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         match self {
             Segment::Dot(_, op) => op.eval(ctx),
             Segment::Bracket(_, op) => op.eval(ctx),
@@ -50,7 +50,7 @@ impl Segment {
 }
 
 impl RecursiveOp {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         match self {
             RecursiveOp::Raw(inner) => inner.eval(ctx),
             RecursiveOp::Bracket(_, inner) => inner.eval(ctx),
@@ -59,18 +59,18 @@ impl RecursiveOp {
 }
 
 impl RawSelector {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         match self {
-            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => v.iter().collect(),
-                Value::Object(m) => m.values().collect(),
+            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a.as_ref() {
+                JsonRef::Array(v) => v.iter().collect(),
+                JsonRef::Object(m) => m.values().collect(),
                 _ => vec![],
             }),
             RawSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
             }
-            RawSelector::Name(name) => ctx.apply_matched(|_, a| match a {
-                Value::Object(m) => m.get(name.as_str()).map(|a| vec![a]).unwrap_or_default(),
+            RawSelector::Name(name) => ctx.apply_matched(|_, a| match a.as_ref() {
+                JsonRef::Object(m) => m.get(name.as_str()).map(|a| vec![a]).unwrap_or_default(),
                 _ => vec![],
             }),
         }
@@ -85,7 +85,7 @@ fn step_handle(val: i64) -> (bool, usize) {
     }
 }
 
-fn idx_handle(val: i64, slice: &[Value]) -> Option<usize> {
+fn idx_handle<T: Json>(val: i64, slice: &impl JsonArray<T>) -> Option<usize> {
     if val < 0 {
         slice.len().checked_sub(val.abs() as usize)
     } else {
@@ -93,35 +93,35 @@ fn idx_handle(val: i64, slice: &[Value]) -> Option<usize> {
     }
 }
 
-fn range(slice: &[Value], start: usize, end: usize) -> &[Value] {
+fn range<T: Json>(slice: &T::Array, start: usize, end: usize) -> Vec<&T> {
     if start > end || start > slice.len() {
-        &[]
+        vec![]
     } else if end >= slice.len() {
-        &slice[start..]
+        slice.iter().skip(start).collect()
     } else {
-        &slice[start..end]
+        slice.iter().skip(start).take(end - start).collect()
     }
 }
 
 impl StepRange {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         let start = self.start.as_ref().map_or(0, |i| i.as_int());
         let end = self.end.as_ref().map_or(i64::MAX, |i| i.as_int());
         let step = self.step.as_ref().map_or(1, |i| i.as_int().get());
 
         let (rev, step) = step_handle(step);
 
-        ctx.apply_matched(|_, a| match a {
-            Value::Array(v) => {
+        ctx.apply_matched(|_, a| match a.as_ref() {
+            JsonRef::Array(v) => {
                 let start = idx_handle(start, v).unwrap_or(0);
                 let end = idx_handle(end, v).unwrap_or(0);
 
-                let iter = range(v, start, end).iter();
+                let vec = range(v, start, end);
 
                 if rev {
-                    iter.rev().step_by(step).collect()
+                    vec.into_iter().rev().step_by(step).collect()
                 } else {
-                    iter.step_by(step).collect()
+                    vec.into_iter().step_by(step).collect()
                 }
             }
             _ => vec![],
@@ -130,16 +130,16 @@ impl StepRange {
 }
 
 impl Range {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         let start = self.start.as_ref().map_or(0, |i| i.as_int());
         let end = self.end.as_ref().map_or(i64::MAX, |i| i.as_int());
 
-        ctx.apply_matched(|_, a| match a {
-            Value::Array(v) => {
+        ctx.apply_matched(|_, a| match a.as_ref() {
+            JsonRef::Array(v) => {
                 let start = idx_handle(start, v).unwrap_or(0);
                 let end = idx_handle(end, v).unwrap_or(0);
 
-                range(v, start, end).iter().collect()
+                range(v, start, end).into_iter().collect()
             }
             _ => vec![],
         });
@@ -147,7 +147,7 @@ impl Range {
 }
 
 impl UnionComponent {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         match self {
             UnionComponent::StepRange(step_range) => step_range.eval(ctx),
             UnionComponent::Range(range) => range.eval(ctx),
@@ -168,7 +168,7 @@ impl UnionComponent {
 }
 
 impl BracketSelector {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         match self {
             BracketSelector::Union(components) => {
                 let mut new_matched = Vec::new();
@@ -181,9 +181,9 @@ impl BracketSelector {
             }
             BracketSelector::StepRange(step_range) => step_range.eval(ctx),
             BracketSelector::Range(range) => range.eval(ctx),
-            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => v.iter().collect(),
-                Value::Object(m) => m.values().collect(),
+            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a.as_ref() {
+                JsonRef::Array(v) => v.iter().collect(),
+                JsonRef::Object(m) => m.values().collect(),
                 _ => vec![],
             }),
             BracketSelector::Parent(_) => {
@@ -203,17 +203,17 @@ impl BracketSelector {
 }
 
 impl BracketLit {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         match self {
-            BracketLit::Int(i) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => idx_handle(i.as_int(), v)
+            BracketLit::Int(i) => ctx.apply_matched(|_, a| match a.as_ref() {
+                JsonRef::Array(v) => idx_handle(i.as_int(), v)
                     .and_then(|idx| v.get(idx))
                     .map(|a| vec![a])
                     .unwrap_or_default(),
                 _ => vec![],
             }),
-            BracketLit::String(s) => ctx.apply_matched(|_, a| match a {
-                Value::Object(m) => m.get(s.as_str()).map(|a| vec![a]).unwrap_or_default(),
+            BracketLit::String(s) => ctx.apply_matched(|_, a| match a.as_ref() {
+                JsonRef::Object(m) => m.get(s.as_str()).map(|a| vec![a]).unwrap_or_default(),
                 _ => vec![],
             }),
         }
@@ -221,7 +221,7 @@ impl BracketLit {
 }
 
 impl SubPath {
-    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, a: &'a Value) -> Option<Cow<'a, Value>> {
+    fn eval_expr<'a, T: Json>(&self, ctx: &EvalCtx<'a, T>, a: &'a T) -> Option<Cow<'a, T>> {
         let relative = match self.kind {
             PathKind::Root(_) => false,
             PathKind::Relative(_) => true,
@@ -237,7 +237,7 @@ impl SubPath {
 
         if matched.len() == 1 {
             let matched = if self.tilde.is_some() {
-                Cow::Owned(ctx.idx_of(matched[0])?.into())
+                Cow::Owned(T::from_idx(ctx.idx_of(matched[0])?))
             } else {
                 Cow::Borrowed(matched[0])
             };
@@ -248,7 +248,7 @@ impl SubPath {
         }
     }
 
-    fn eval_match(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval_match<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
         let relative = match self.kind {
             PathKind::Root(_) => false,
             PathKind::Relative(_) => true,
@@ -266,7 +266,7 @@ impl SubPath {
             let matched = if self.tilde.is_some() {
                 matched
                     .into_iter()
-                    .map(|a| Cow::Owned(ctx.idx_of(a).unwrap().into()))
+                    .map(|a| Cow::Owned(T::from_idx(ctx.idx_of(a).unwrap())))
                     .collect::<Vec<_>>()
             } else {
                 matched.into_iter().map(Cow::Borrowed).collect()
@@ -274,20 +274,20 @@ impl SubPath {
 
             matched
                 .into_iter()
-                .flat_map(|mat| match a {
-                    Value::Array(v) => {
-                        let idx = match &*mat {
-                            Value::Number(n) => idx_handle(n.as_i64().unwrap(), v),
+                .flat_map(|mat| match a.as_ref() {
+                    JsonRef::Array(v) => {
+                        let idx = match (*mat).as_ref() {
+                            JsonRef::Number(n) => idx_handle(n.as_i64().unwrap(), v),
                             _ => None,
                         };
                         idx.and_then(|i| v.get(i))
                             .map(|a| vec![a])
                             .unwrap_or_default()
                     }
-                    Value::Object(m) => {
-                        let idx = match &*mat {
-                            Value::String(s) => Some(s.to_string()),
-                            Value::Number(n) => Some(n.to_string()),
+                    JsonRef::Object(m) => {
+                        let idx = match (*mat).as_ref() {
+                            JsonRef::String(s) => Some(s.to_string()),
+                            JsonRef::Number(n) => Some(n.to_string()),
                             _ => None,
                         };
 
@@ -303,9 +303,9 @@ impl SubPath {
 }
 
 impl Filter {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        ctx.apply_matched(|ctx, a| match a {
-            Value::Array(v) => v
+    fn eval<'a, T: Json>(&self, ctx: &mut EvalCtx<'a, T>) {
+        ctx.apply_matched(|ctx, a| match a.as_ref() {
+            JsonRef::Array(v) => v
                 .iter()
                 .filter(|&a| {
                     self.inner
@@ -313,7 +313,7 @@ impl Filter {
                         .map_or(false, |c| c.as_bool() == Some(true))
                 })
                 .collect(),
-            Value::Object(m) => m
+            JsonRef::Object(m) => m
                 .values()
                 .filter(|&a| {
                     self.inner
@@ -327,25 +327,25 @@ impl Filter {
 }
 
 impl FilterExpr {
-    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, val: &'a Value) -> Option<Cow<'a, Value>> {
+    fn eval_expr<'a, T: Json>(&self, ctx: &EvalCtx<'a, T>, val: &'a T) -> Option<Cow<'a, T>> {
         match self {
             FilterExpr::Unary(op, inner) => {
                 let inner = inner.eval_expr(ctx, val)?;
 
                 match op {
-                    UnOp::Neg(_) => match &*inner {
-                        Value::Number(n) => {
+                    UnOp::Neg(_) => match (*inner).as_ref() {
+                        JsonRef::Number(n) => {
                             let out = n
                                 .as_i64()
-                                .map(|i| Value::from(-i))
-                                .or_else(|| n.as_u64().map(|i| Value::from(-(i as i64))))
-                                .or_else(|| n.as_f64().map(|f| Value::from(-f)));
+                                .map(|i| T::from_i64(-i))
+                                .or_else(|| n.as_u64().map(|i| T::from_i64(-(i as i64))))
+                                .or_else(|| n.as_f64().map(|f| T::from_f64(-f)));
                             Some(Cow::Owned(out.unwrap()))
                         }
                         _ => None,
                     },
-                    UnOp::Not(_) => match &*inner {
-                        Value::Bool(b) => Some(Cow::Owned(Value::from(!b))),
+                    UnOp::Not(_) => match (*inner).as_ref() {
+                        JsonRef::Bool(b) => Some(Cow::Owned(T::from_bool(!b))),
                         _ => None,
                     },
                 }
@@ -358,38 +358,38 @@ impl FilterExpr {
                     BinOp::And(_) => {
                         let lhs = lhs.as_bool()?;
                         let rhs = rhs.as_bool()?;
-                        Some(Cow::Owned(Value::Bool(lhs && rhs)))
+                        Some(Cow::Owned(T::from_bool(lhs && rhs)))
                     }
                     BinOp::Or(_) => {
                         let lhs = lhs.as_bool()?;
                         let rhs = rhs.as_bool()?;
-                        Some(Cow::Owned(Value::Bool(lhs || rhs)))
+                        Some(Cow::Owned(T::from_bool(lhs || rhs)))
                     }
 
-                    BinOp::Eq(_) => Some(Cow::Owned(Value::Bool(lhs == rhs))),
+                    BinOp::Eq(_) => Some(Cow::Owned(T::from_bool(lhs == rhs))),
                     BinOp::Le(_) => {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::Bool(lhs <= rhs)))
+                        Some(Cow::Owned(T::from_bool(lhs <= rhs)))
                     }
                     BinOp::Lt(_) => {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::Bool(lhs < rhs)))
+                        Some(Cow::Owned(T::from_bool(lhs < rhs)))
                     }
                     BinOp::Gt(_) => {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::Bool(lhs > rhs)))
+                        Some(Cow::Owned(T::from_bool(lhs > rhs)))
                     }
                     BinOp::Ge(_) => {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::Bool(lhs >= rhs)))
+                        Some(Cow::Owned(T::from_bool(lhs >= rhs)))
                     }
 
                     BinOp::Add(_) => {
@@ -397,12 +397,12 @@ impl FilterExpr {
                             let lhs = lhs.as_f64()?;
                             let rhs = rhs.as_f64()?;
 
-                            Some(Cow::Owned(Value::from(lhs + rhs)))
+                            Some(Cow::Owned(T::from_f64(lhs + rhs)))
                         } else if lhs.is_string() && rhs.is_string() {
                             let lhs = lhs.as_str()?;
                             let rhs = rhs.as_str()?;
 
-                            Some(Cow::Owned(Value::String(format!("{lhs}{rhs}"))))
+                            Some(Cow::Owned(T::from_str(format!("{lhs}{rhs}"))))
                         } else {
                             None
                         }
@@ -411,34 +411,34 @@ impl FilterExpr {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::from(lhs - rhs)))
+                        Some(Cow::Owned(T::from_f64(lhs - rhs)))
                     }
                     BinOp::Mul(_) => {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::from(lhs * rhs)))
+                        Some(Cow::Owned(T::from_f64(lhs * rhs)))
                     }
                     BinOp::Div(_) => {
                         let lhs = lhs.as_f64()?;
                         let rhs = rhs.as_f64()?;
 
-                        Some(Cow::Owned(Value::from(lhs / rhs)))
+                        Some(Cow::Owned(T::from_f64(lhs / rhs)))
                     }
                     BinOp::Rem(_) => {
                         let lhs = lhs.as_i64()?;
                         let rhs = rhs.as_i64()?;
 
-                        Some(Cow::Owned(Value::from(lhs % rhs)))
+                        Some(Cow::Owned(T::from_i64(lhs % rhs)))
                     }
                 }
             }
             FilterExpr::Path(path) => path.eval_expr(ctx, val),
             FilterExpr::Lit(lit) => Some(Cow::Owned(match lit {
-                ExprLit::Int(i) => Value::from(i.as_int()),
-                ExprLit::String(s) => Value::from(s.as_str()),
-                ExprLit::Bool(b) => Value::from(b.as_bool()),
-                ExprLit::Null(_) => Value::Null,
+                ExprLit::Int(i) => T::from_i64(i.as_int()),
+                ExprLit::String(s) => T::from_str(s.as_str().to_owned()),
+                ExprLit::Bool(b) => T::from_bool(b.as_bool()),
+                ExprLit::Null(_) => T::null(),
             })),
             FilterExpr::Parens(_, inner) => inner.eval_expr(ctx, val),
         }
