@@ -11,6 +11,8 @@ mod parse;
 #[cfg(feature = "spanned")]
 mod span;
 mod token;
+#[cfg(test)]
+mod tests;
 
 #[cfg(feature = "spanned")]
 pub use span::{Span, Spanned};

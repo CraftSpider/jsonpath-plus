@@ -16,6 +16,11 @@ impl Span {
         let end = usize::max(self.end, other.end);
         Span { start, end }
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn slice(self, str: &str) -> &str {
+        &str[self.start..self.end]
+    }
 }
 
 impl From<ops::Range<usize>> for Span {
