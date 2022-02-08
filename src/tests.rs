@@ -1,5 +1,62 @@
+use std::collections::HashSet;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 use super::*;
 use serde_json::{json, Value};
+
+fn hash_val<H: Hasher>(val: &Value, state: &mut H) {
+    match val {
+        Value::Null => state.write_u8(0),
+        Value::Bool(b) => {
+            state.write_u8(1);
+            state.write_u8(*b as u8);
+        }
+        Value::Number(n) => {
+            state.write_u8(2);
+            state.write(&n.as_f64().unwrap().to_ne_bytes());
+        }
+        Value::String(s) => {
+            state.write_u8(3);
+            state.write(s.as_bytes());
+        }
+        Value::Array(a) => {
+            state.write_u8(4);
+            state.write_usize(a.len());
+            for v in a {
+                hash_val(v, state);
+            }
+        }
+        Value::Object(m) => {
+            state.write_u8(5);
+            state.write_usize(m.len());
+            for (key, val) in m {
+                state.write(key.as_bytes());
+                hash_val(val, state);
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub struct ValueKey(Value);
+
+impl fmt::Debug for ValueKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        <Value as fmt::Debug>::fmt(&self.0, f)
+    }
+}
+
+impl Hash for ValueKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_val(&self.0, state)
+    }
+}
+
+impl From<Value> for ValueKey {
+    fn from(val: Value) -> Self {
+        ValueKey(val)
+    }
+}
 
 #[test]
 fn test_replace() {
@@ -49,6 +106,39 @@ fn test_delete_in_try_replace() {
         .try_replace(&json, |_| None);
 
     assert_eq!(result, json!({"list": []}));
+}
+
+#[test]
+fn parent_after_recursive_descent() {
+    let json = json!({
+        "a": {"list": [1, 2, 3], "null": null},
+        "b": [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}],
+        "c": 1,
+        "d": false,
+    });
+    let result = find("$..^", &json)
+        .unwrap()
+        .into_iter()
+        .cloned()
+        .map(ValueKey::from)
+        .collect::<HashSet<ValueKey>>();
+
+    assert_eq!(
+        result,
+        HashSet::from([
+            json!([1, 2, 3]),
+            json!({"list": [1, 2, 3], "null": null}),
+            json!({"id": 1, "name": "foo"}),
+            json!({"id": 2, "name": "bar"}),
+            json!([{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]),
+            json!({
+                "a": {"list": [1, 2, 3], "null": null},
+                "b": [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}],
+                "c": 1,
+                "d": false,
+            }),
+        ].map(ValueKey::from))
+    );
 }
 
 #[test]

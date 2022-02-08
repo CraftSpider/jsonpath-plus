@@ -33,6 +33,9 @@ impl Segment {
             Segment::Dot(_, op) => op.eval(ctx),
             Segment::Bracket(_, op) => op.eval(ctx),
             Segment::Recursive(_, op) => {
+                // Ensure that apply_matched doesn't add incorrect parent relationships.
+                // We need to do this work anyways
+                ctx.prepopulate_parents();
                 ctx.apply_matched(|_, a| {
                     let mut all = Vec::new();
                     flatten_recur(&mut all, a);

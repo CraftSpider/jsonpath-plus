@@ -83,6 +83,33 @@ impl<'a> EvalCtx<'a> {
         self.parents.get(&RefKey(val)).copied()
     }
 
+    fn parents_recur(&mut self, value: &'a Value) {
+        match value {
+            Value::Array(v) => {
+                for child in v {
+                    self.parents.entry(RefKey(child))
+                        .or_insert(value);
+                    self.parents_recur(child);
+                }
+            }
+            Value::Object(m) => {
+                for (_, child) in m {
+                    self.parents.entry(RefKey(child))
+                        .or_insert(value);
+                    self.parents_recur(child);
+                }
+            }
+            _ => (),
+        }
+    }
+
+    pub fn prepopulate_parents(&mut self) {
+        self.cur_matched
+            .clone()
+            .into_iter()
+            .for_each(|v| self.parents_recur(v));
+    }
+
     pub fn set_matched(&mut self, matched: Vec<&'a Value>) {
         self.cur_matched = matched;
     }
@@ -94,7 +121,9 @@ impl<'a> EvalCtx<'a> {
             .flat_map(|i| {
                 let results = f(self, i);
                 for &a in &results {
-                    self.parents.insert(RefKey(a), i);
+                    self.parents
+                        .entry(RefKey(a))
+                        .or_insert(i);
                 }
                 results
             })
