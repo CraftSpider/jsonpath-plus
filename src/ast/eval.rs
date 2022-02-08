@@ -105,9 +105,9 @@ fn range(slice: &[Value], start: usize, end: usize) -> &[Value] {
 
 impl StepRange {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        let start = self.start.as_ref().map_or(0, |i| i.val);
-        let end = self.end.as_ref().map_or(i64::MAX, |i| i.val);
-        let step = self.step.as_ref().map_or(1, |i| i.val.get());
+        let start = self.start.as_ref().map_or(0, |i| i.as_int());
+        let end = self.end.as_ref().map_or(i64::MAX, |i| i.as_int());
+        let step = self.step.as_ref().map_or(1, |i| i.as_int().get());
 
         let (rev, step) = step_handle(step);
 
@@ -131,8 +131,8 @@ impl StepRange {
 
 impl Range {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        let start = self.start.as_ref().map_or(0, |i| i.val);
-        let end = self.end.as_ref().map_or(i64::MAX, |i| i.val);
+        let start = self.start.as_ref().map_or(0, |i| i.as_int());
+        let end = self.end.as_ref().map_or(i64::MAX, |i| i.as_int());
 
         ctx.apply_matched(|_, a| match a {
             Value::Array(v) => {
@@ -206,7 +206,7 @@ impl BracketLit {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
             BracketLit::Int(i) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => idx_handle(i.val, v)
+                Value::Array(v) => idx_handle(i.as_int(), v)
                     .and_then(|idx| v.get(idx))
                     .map(|a| vec![a])
                     .unwrap_or_default(),
@@ -435,9 +435,9 @@ impl FilterExpr {
             }
             FilterExpr::Path(path) => path.eval_expr(ctx, val),
             FilterExpr::Lit(lit) => Some(Cow::Owned(match lit {
-                ExprLit::Int(i) => Value::from(i.val),
-                ExprLit::Str(s) => Value::from(s.as_str()),
-                ExprLit::Bool(b) => Value::from(b.val),
+                ExprLit::Int(i) => Value::from(i.as_int()),
+                ExprLit::String(s) => Value::from(s.as_str()),
+                ExprLit::Bool(b) => Value::from(b.as_bool()),
                 ExprLit::Null(_) => Value::Null,
             })),
             FilterExpr::Parens(_, inner) => inner.eval_expr(ctx, val),

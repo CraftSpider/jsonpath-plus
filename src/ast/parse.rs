@@ -35,9 +35,9 @@ impl NonZeroIntLit {
         IntLit::parser().try_map(|il, span| {
             Ok(NonZeroIntLit {
                 #[cfg(feature = "spanned")]
-                span: il.span,
+                span: il.span(),
                 val: il
-                    .val
+                    .as_int()
                     .try_into()
                     .map_err(|_| Simple::custom(span, "Expected a non-zero integer literal"))?,
             })
@@ -274,7 +274,7 @@ impl ExprLit {
     fn parser() -> impl Parser<Input, ExprLit, Error = Error> {
         IntLit::parser()
             .map(ExprLit::Int)
-            .or(StringLit::parser().map(ExprLit::Str))
+            .or(StringLit::parser().map(ExprLit::String))
             .or(BoolLit::parser().map(ExprLit::Bool))
             .or(NullLit::parser().map(ExprLit::Null))
     }

@@ -290,7 +290,7 @@ impl Spanned for ExprLit {
     fn span(&self) -> Span {
         match self {
             ExprLit::Int(i) => i.span(),
-            ExprLit::Str(s) => s.span(),
+            ExprLit::String(s) => s.span(),
             ExprLit::Bool(b) => b.span(),
             ExprLit::Null(n) => n.span(),
         }

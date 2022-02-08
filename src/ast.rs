@@ -139,8 +139,8 @@ impl StringLit {
     #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
-            StringLit::Single(s) => &s.content.val,
-            StringLit::Double(s) => &s.content.val,
+            StringLit::Single(s) => s.as_str(),
+            StringLit::Double(s) => s.as_str(),
         }
     }
 }
@@ -279,19 +279,19 @@ impl StepRange {
     /// Get the user-provided literal start for this range
     #[must_use]
     pub fn start(&self) -> Option<i64> {
-        self.start.as_ref().map(|a| a.val)
+        self.start.as_ref().map(|a| a.as_int())
     }
 
     /// Get the user-provided literal end for this range
     #[must_use]
     pub fn end(&self) -> Option<i64> {
-        self.end.as_ref().map(|a| a.val)
+        self.end.as_ref().map(|a| a.as_int())
     }
 
     /// Get the user-provided step value for this range
     #[must_use]
     pub fn step(&self) -> Option<NonZeroI64> {
-        self.step.as_ref().map(|a| a.val)
+        self.step.as_ref().map(|a| a.as_int())
     }
 }
 
@@ -318,13 +318,13 @@ impl Range {
     /// Get the user-provided literal start for this range
     #[must_use]
     pub fn start(&self) -> Option<i64> {
-        self.start.as_ref().map(|a| a.val)
+        self.start.as_ref().map(|a| a.as_int())
     }
 
     /// Get the user-provided literal end for this range
     #[must_use]
     pub fn end(&self) -> Option<i64> {
-        self.end.as_ref().map(|a| a.val)
+        self.end.as_ref().map(|a| a.as_int())
     }
 }
 
@@ -375,6 +375,40 @@ pub enum BracketLit {
     String(StringLit),
 }
 
+impl BracketLit {
+    /// Whether this literal is an integer
+    #[must_use]
+    pub fn is_int(&self) -> bool {
+        matches!(self, BracketLit::Int(_))
+    }
+
+    /// Whether this literal is a string
+    #[must_use]
+    pub fn is_str(&self) -> bool {
+        matches!(self, BracketLit::String(_))
+    }
+
+    /// Get this literal as an integer value, or None
+    #[must_use]
+    pub fn as_int(&self) -> Option<i64> {
+        if let BracketLit::Int(i) = self {
+            Some(i.as_int())
+        } else {
+            None
+        }
+    }
+
+    /// Get this literal as a string value, or None
+    #[must_use]
+    pub fn as_str(&self) -> Option<&str> {
+        if let BracketLit::String(s) = self {
+            Some(s.as_str())
+        } else {
+            None
+        }
+    }
+}
+
 /// A filter selector inside of brackets, `?(...)`
 pub struct Filter {
     question: token::Question,
@@ -396,11 +430,67 @@ pub enum ExprLit {
     /// An integer literal, see [`IntLit`]
     Int(IntLit),
     /// A string literal, see [`StringLit`]
-    Str(StringLit),
+    String(StringLit),
     /// A boolean literal, see [`BoolLit`]
     Bool(BoolLit),
     /// A null literal, see [`NullLit`]
     Null(NullLit),
+}
+
+impl ExprLit {
+    /// Whether this literal is an integer
+    #[must_use]
+    pub fn is_int(&self) -> bool {
+        matches!(self, ExprLit::Int(_))
+    }
+
+    /// Whether this literal is a string
+    #[must_use]
+    pub fn is_str(&self) -> bool {
+        matches!(self, ExprLit::String(_))
+    }
+
+    /// Whether this literal is a boolean
+    #[must_use]
+    pub fn is_bool(&self) -> bool {
+        matches!(self, ExprLit::Bool(_))
+    }
+
+    /// Whether this literal is a null
+    #[must_use]
+    pub fn is_null(&self) -> bool {
+        matches!(self, ExprLit::Null(_))
+    }
+
+    /// Get this literal as an integer value, or None
+    #[must_use]
+    pub fn as_int(&self) -> Option<i64> {
+        if let ExprLit::Int(i) = self {
+            Some(i.as_int())
+        } else {
+            None
+        }
+    }
+
+    /// Get this literal as a string value, or None
+    #[must_use]
+    pub fn as_str(&self) -> Option<&str> {
+        if let ExprLit::String(s) = self {
+            Some(s.as_str())
+        } else {
+            None
+        }
+    }
+
+    /// Get this literal as a boolean value, or None
+    #[must_use]
+    pub fn as_bool(&self) -> Option<bool> {
+        if let ExprLit::Bool(s) = self {
+            Some(s.as_bool())
+        } else {
+            None
+        }
+    }
 }
 
 /// An expression inside a filter directive, or any sub-expression in that tree
