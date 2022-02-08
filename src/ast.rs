@@ -10,9 +10,9 @@ mod eval;
 mod parse;
 #[cfg(feature = "spanned")]
 mod span;
-mod token;
 #[cfg(test)]
 mod tests;
+mod token;
 
 #[cfg(feature = "spanned")]
 pub use span::{Span, Spanned};
@@ -194,6 +194,7 @@ impl SubPath {
 }
 
 /// The kind of a sub-path. Either root-based or relative
+#[non_exhaustive]
 pub enum PathKind {
     /// A root-based path
     Root(token::Dollar),
@@ -216,6 +217,7 @@ impl PathKind {
 }
 
 /// A single segement selector in a path
+#[non_exhaustive]
 pub enum Segment {
     /// A dot followed by a simple selector, `.a`
     Dot(token::Dot, RawSelector),
@@ -226,6 +228,7 @@ pub enum Segment {
 }
 
 /// The optional selector following a recursive selector
+#[non_exhaustive]
 pub enum RecursiveOp {
     /// A simple selector, see [`RawSelector`]
     Raw(RawSelector),
@@ -234,6 +237,7 @@ pub enum RecursiveOp {
 }
 
 /// The raw selector following a dot
+#[non_exhaustive]
 pub enum RawSelector {
     /// A wildcard selector to get all children, `.*`
     Wildcard(token::Star),
@@ -325,6 +329,7 @@ impl Range {
 }
 
 /// A component of a bracket union selector
+#[non_exhaustive]
 pub enum UnionComponent {
     /// A range selector with explicit step
     StepRange(StepRange),
@@ -341,6 +346,7 @@ pub enum UnionComponent {
 }
 
 /// The inside of a bracket selector segment
+#[non_exhaustive]
 pub enum BracketSelector {
     /// A union of multiple selectors, `[1, 3, 9]`
     Union(Vec<UnionComponent>),
@@ -361,6 +367,7 @@ pub enum BracketSelector {
 }
 
 /// A literal selector inside of brackets, `0` or `'a'`
+#[non_exhaustive]
 pub enum BracketLit {
     /// An integer literal, see [`IntLit`]
     Int(IntLit),
@@ -384,6 +391,7 @@ impl Filter {
 }
 
 /// A literal inside an expression
+#[non_exhaustive]
 pub enum ExprLit {
     /// An integer literal, see [`IntLit`]
     Int(IntLit),
@@ -396,6 +404,7 @@ pub enum ExprLit {
 }
 
 /// An expression inside a filter directive, or any sub-expression in that tree
+#[non_exhaustive]
 pub enum FilterExpr {
     /// An expression with an unary operator before it, such as `!(true)`
     Unary(UnOp, Box<FilterExpr>),
@@ -410,6 +419,7 @@ pub enum FilterExpr {
 }
 
 /// An unary operator in an expression
+#[non_exhaustive]
 pub enum UnOp {
     /// `-`
     Neg(token::Dash),
@@ -418,6 +428,7 @@ pub enum UnOp {
 }
 
 /// A binary operator in an expression
+#[non_exhaustive]
 pub enum BinOp {
     /// `&&`
     And(token::DoubleAnd),

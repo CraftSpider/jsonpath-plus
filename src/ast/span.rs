@@ -17,9 +17,17 @@ impl Span {
         Span { start, end }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn slice(self, str: &str) -> &str {
-        &str[self.start..self.end]
+    /// Get the string slice of this span on the source string. Note the provided string must be
+    /// the whole source string for this method to be meaningful.
+    #[must_use]
+    pub fn get_span(self, source: &str) -> &str {
+        let start = source.char_indices().nth(self.start);
+
+        let end = source.char_indices().nth(self.end);
+
+        let ((start, _), (end, _)) = start.zip(end).expect("Invalid source for span");
+
+        &source[start..end]
     }
 }
 
