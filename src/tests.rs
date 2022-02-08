@@ -1,8 +1,8 @@
+use super::*;
+use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use super::*;
-use serde_json::{json, Value};
 
 fn hash_val<H: Hasher>(val: &Value, state: &mut H) {
     match val {
@@ -125,19 +125,22 @@ fn parent_after_recursive_descent() {
 
     assert_eq!(
         result,
-        HashSet::from([
-            json!([1, 2, 3]),
-            json!({"list": [1, 2, 3], "null": null}),
-            json!({"id": 1, "name": "foo"}),
-            json!({"id": 2, "name": "bar"}),
-            json!([{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]),
-            json!({
-                "a": {"list": [1, 2, 3], "null": null},
-                "b": [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}],
-                "c": 1,
-                "d": false,
-            }),
-        ].map(ValueKey::from))
+        HashSet::from(
+            [
+                json!([1, 2, 3]),
+                json!({"list": [1, 2, 3], "null": null}),
+                json!({"id": 1, "name": "foo"}),
+                json!({"id": 2, "name": "bar"}),
+                json!([{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}]),
+                json!({
+                    "a": {"list": [1, 2, 3], "null": null},
+                    "b": [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}],
+                    "c": 1,
+                    "d": false,
+                }),
+            ]
+            .map(ValueKey::from)
+        )
     );
 }
 

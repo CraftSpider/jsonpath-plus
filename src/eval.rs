@@ -87,15 +87,13 @@ impl<'a> EvalCtx<'a> {
         match value {
             Value::Array(v) => {
                 for child in v {
-                    self.parents.entry(RefKey(child))
-                        .or_insert(value);
+                    self.parents.entry(RefKey(child)).or_insert(value);
                     self.parents_recur(child);
                 }
             }
             Value::Object(m) => {
                 for (_, child) in m {
-                    self.parents.entry(RefKey(child))
-                        .or_insert(value);
+                    self.parents.entry(RefKey(child)).or_insert(value);
                     self.parents_recur(child);
                 }
             }
@@ -121,9 +119,7 @@ impl<'a> EvalCtx<'a> {
             .flat_map(|i| {
                 let results = f(self, i);
                 for &a in &results {
-                    self.parents
-                        .entry(RefKey(a))
-                        .or_insert(i);
+                    self.parents.entry(RefKey(a)).or_insert(i);
                 }
                 results
             })
