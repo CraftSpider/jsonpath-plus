@@ -3,9 +3,10 @@
 use crate::error::{JsonTy, ResolveError};
 use core::cmp::Ordering;
 use serde_json::Value;
+use std::ops::{Deref, Index, IndexMut};
 
 /// An index on a JSON object, either an integer index on an array or a string index on an object
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Idx {
     /// An array index
     Array(usize),
@@ -54,24 +55,35 @@ impl From<Idx> for Value {
     }
 }
 
+impl Index<&Idx> for Value {
+    type Output = Value;
+
+    fn index(&self, index: &Idx) -> &Self::Output {
+        match (self, index) {
+            (Value::Array(a), Idx::Array(idx)) => &a[*idx],
+            (Value::Object(o), Idx::Object(idx)) => &o[idx],
+            (val, idx) => panic!("Invalid index {:?} for value {:?}", val, idx),
+        }
+    }
+}
+
+impl IndexMut<&Idx> for Value {
+    fn index_mut(&mut self, index: &Idx) -> &mut Self::Output {
+        match (self, index) {
+            (Value::Array(a), Idx::Array(idx)) => &mut a[*idx],
+            (Value::Object(o), Idx::Object(idx)) => &mut o[idx],
+            (val, idx) => panic!("Invalid index {:?} for value {:?}", val, idx),
+        }
+    }
+}
+
 /// A shortest-path set of indices on a JSON object
+#[derive(Clone, Debug, PartialEq)]
 pub struct IdxPath(Vec<Idx>);
 
 impl IdxPath {
     pub(crate) const fn new(indices: Vec<Idx>) -> IdxPath {
         IdxPath(indices)
-    }
-
-    /// The length of this path
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Whether this path is empty
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
     }
 
     /// Reference this path as a raw slice of indices
@@ -181,6 +193,14 @@ impl IdxPath {
             }
             other => other,
         }
+    }
+}
+
+impl Deref for IdxPath {
+    type Target = [Idx];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

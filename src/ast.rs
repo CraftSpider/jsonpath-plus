@@ -224,16 +224,7 @@ pub enum Segment {
     /// A bracket containing a complex selector, `[?(...)]`
     Bracket(token::Bracket, BracketSelector),
     /// A recursive selector optionally followed by a simple selector, `..foo`
-    Recursive(token::DotDot, Option<RecursiveOp>),
-}
-
-/// The optional selector following a recursive selector
-#[non_exhaustive]
-pub enum RecursiveOp {
-    /// A simple selector, see [`RawSelector`]
-    Raw(RawSelector),
-    /// A complex selector, see [`BracketSelector`]
-    Bracket(token::Bracket, BracketSelector),
+    Recursive(token::DotDot, Option<RawSelector>),
 }
 
 /// The raw selector following a dot
@@ -343,6 +334,22 @@ pub enum UnionComponent {
     Filter(Filter),
     /// A literal selector to retrieve the mentioned keys
     Literal(BracketLit),
+}
+
+impl TryFrom<BracketSelector> for UnionComponent {
+    type Error = ();
+
+    fn try_from(value: BracketSelector) -> Result<Self, Self::Error> {
+        Ok(match value {
+            BracketSelector::StepRange(sr) => UnionComponent::StepRange(sr),
+            BracketSelector::Range(r) => UnionComponent::Range(r),
+            BracketSelector::Parent(p) => UnionComponent::Parent(p),
+            BracketSelector::Path(p) => UnionComponent::Path(p),
+            BracketSelector::Filter(f) => UnionComponent::Filter(f),
+            BracketSelector::Literal(l) => UnionComponent::Literal(l),
+            _ => return Err(()),
+        })
+    }
 }
 
 /// The inside of a bracket selector segment

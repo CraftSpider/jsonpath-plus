@@ -11,6 +11,10 @@ pub struct Span {
 }
 
 impl Span {
+    pub(crate) fn as_range(self) -> ops::Range<usize> {
+        ops::Range { start: self.start, end: self.end }
+    }
+
     pub(crate) fn join(self, other: Span) -> Span {
         let start = usize::min(self.start, other.start);
         let end = usize::max(self.end, other.end);
@@ -194,15 +198,6 @@ impl Spanned for RawSelector {
             RawSelector::Wildcard(s) => s.span(),
             RawSelector::Parent(c) => c.span(),
             RawSelector::Name(i) => i.span(),
-        }
-    }
-}
-
-impl Spanned for RecursiveOp {
-    fn span(&self) -> Span {
-        match self {
-            RecursiveOp::Raw(rs) => rs.span(),
-            RecursiveOp::Bracket(b, s) => b.span().join(s.span()),
         }
     }
 }

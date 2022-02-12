@@ -14,6 +14,21 @@ fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
 }
 
 impl Path {
+    pub(crate) fn has_parent(&self) -> bool {
+        for op in &self.segments {
+            let result = matches!(
+                op,
+                Segment::Dot(_, RawSelector::Parent(_))
+                | Segment::Recursive(_, Some(RawSelector::Parent(_)))
+                | Segment::Bracket(_, BracketSelector::Parent(_))
+            );
+            if result {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_>) {
         for op in &self.segments {
             op.eval(ctx);
@@ -33,9 +48,6 @@ impl Segment {
             Segment::Dot(_, op) => op.eval(ctx),
             Segment::Bracket(_, op) => op.eval(ctx),
             Segment::Recursive(_, op) => {
-                // Ensure that apply_matched doesn't add incorrect parent relationships.
-                // We need to do this work anyways
-                ctx.prepopulate_parents();
                 ctx.apply_matched(|_, a| {
                     let mut all = Vec::new();
                     flatten_recur(&mut all, a);
@@ -49,15 +61,6 @@ impl Segment {
     }
 }
 
-impl RecursiveOp {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        match self {
-            RecursiveOp::Raw(inner) => inner.eval(ctx),
-            RecursiveOp::Bracket(_, inner) => inner.eval(ctx),
-        }
-    }
-}
-
 impl RawSelector {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
@@ -67,11 +70,11 @@ impl RawSelector {
                 _ => vec![],
             }),
             RawSelector::Parent(_) => {
-                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
             RawSelector::Name(name) => ctx.apply_matched(|_, a| match a {
-                Value::Object(m) => m.get(name.as_str()).map(|a| vec![a]).unwrap_or_default(),
-                _ => vec![],
+                Value::Object(m) => m.get(name.as_str()),
+                _ => None,
             }),
         }
     }
@@ -152,7 +155,7 @@ impl UnionComponent {
             UnionComponent::StepRange(step_range) => step_range.eval(ctx),
             UnionComponent::Range(range) => range.eval(ctx),
             UnionComponent::Parent(_) => {
-                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
             UnionComponent::Path(path) => {
                 path.eval_match(ctx);
@@ -187,7 +190,7 @@ impl BracketSelector {
                 _ => vec![],
             }),
             BracketSelector::Parent(_) => {
-                ctx.apply_matched(|ctx, a| ctx.parent_of(a).map(|a| vec![a]).unwrap_or_default());
+                ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
             BracketSelector::Path(path) => {
                 path.eval_match(ctx);
@@ -207,14 +210,12 @@ impl BracketLit {
         match self {
             BracketLit::Int(i) => ctx.apply_matched(|_, a| match a {
                 Value::Array(v) => idx_handle(i.as_int(), v)
-                    .and_then(|idx| v.get(idx))
-                    .map(|a| vec![a])
-                    .unwrap_or_default(),
-                _ => vec![],
+                    .and_then(|idx| v.get(idx)),
+                _ => None,
             }),
             BracketLit::String(s) => ctx.apply_matched(|_, a| match a {
-                Value::Object(m) => m.get(s.as_str()).map(|a| vec![a]).unwrap_or_default(),
-                _ => vec![],
+                Value::Object(m) => m.get(s.as_str()),
+                _ => None,
             }),
         }
     }
@@ -281,8 +282,6 @@ impl SubPath {
                             _ => None,
                         };
                         idx.and_then(|i| v.get(i))
-                            .map(|a| vec![a])
-                            .unwrap_or_default()
                     }
                     Value::Object(m) => {
                         let idx = match &*mat {
@@ -292,12 +291,10 @@ impl SubPath {
                         };
 
                         idx.and_then(|i| m.get(&i))
-                            .map(|a| vec![a])
-                            .unwrap_or_default()
                     }
-                    _ => vec![],
+                    _ => None,
                 })
-                .collect()
+                .collect::<Vec<_>>()
         });
     }
 }

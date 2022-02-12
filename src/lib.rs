@@ -76,6 +76,9 @@ impl JsonPath {
     #[must_use = "this does not modify the path or provided value"]
     pub fn find<'a>(&self, value: &'a Value) -> Vec<&'a Value> {
         let mut ctx = EvalCtx::new(value);
+        if self.has_parent() {
+            ctx.prepopulate_parents();
+        }
         self.eval(&mut ctx);
         ctx.into_matched()
     }
@@ -85,6 +88,7 @@ impl JsonPath {
     #[must_use = "this does not modify the path or provided value"]
     pub fn find_paths(&self, value: &Value) -> Vec<IdxPath> {
         let mut ctx = EvalCtx::new(value);
+        ctx.prepopulate_parents();
         self.eval(&mut ctx);
         ctx.paths_matched()
     }

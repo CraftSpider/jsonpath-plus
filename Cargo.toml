@@ -1,6 +1,6 @@
 [package]
 name = "jsonpath-plus"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 categories = ["parser-implementations", "api-bindings"]
 keywords = ["jsonpath", "json", "query"]
@@ -14,9 +14,18 @@ repository = "https://github.com/CraftSpider/jsonpath-plus"
 chumsky = { version = "0.8", default-features = false }
 serde_json = "1.0"
 
+[dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+criterion = { version = "0.3", features = ["html_reports"] }
+pprof = { version = "0.6", features = ["flamegraph", "criterion"] }
+
 [features]
 # Whether the parsed paths should preserve token spans referencing where in the provided path they came from
 spanned = []
+
+[[bench]]
+name = "benchmarks"
+harness = false
 
 [package.metadata.docs.rs]
 all-features = true

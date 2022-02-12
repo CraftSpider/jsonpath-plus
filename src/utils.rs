@@ -33,19 +33,8 @@ pub fn replace_paths(mut paths: Vec<IdxPath>, out: &mut Value, mut f: impl FnMut
             .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
-        match replace_on {
-            Value::Array(v) => {
-                let last_idx = last_idx.as_array().expect("Provided path should resolve");
-                let new = f(&v[last_idx]);
-                v[last_idx] = new;
-            }
-            Value::Object(m) => {
-                let last_idx = last_idx.as_object().expect("Provided path should resolve");
-                let new = f(&m[last_idx]);
-                m[last_idx] = new;
-            }
-            _ => unreachable!(),
-        }
+        let new = f(&replace_on[last_idx]);
+        replace_on[last_idx] = new;
     }
 }
 
@@ -63,28 +52,19 @@ pub fn try_replace_paths(
             .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
-        match replace_on {
-            Value::Array(v) => {
-                let last_idx = last_idx.as_array().expect("Provided path should resolve");
-                let new = f(&v[last_idx]);
-                match new {
-                    Some(new) => v[last_idx] = new,
-                    None => {
-                        v.remove(last_idx);
-                    }
-                }
-            }
-            Value::Object(m) => {
-                let last_idx = last_idx.as_object().expect("Provided path should resolve");
-                let new = f(&m[last_idx]);
-                match new {
-                    Some(new) => m[last_idx] = new,
-                    None => {
-                        m.remove(last_idx);
-                    }
-                };
-            }
-            _ => unreachable!(),
+
+        let new = f(&replace_on[last_idx]);
+        match new {
+            Some(new) => replace_on[last_idx] = new,
+            None => match replace_on {
+                Value::Array(v) => {
+                    v.remove(last_idx.as_array().expect("Provided path should resolve"));
+                },
+                Value::Object(m) => {
+                    m.remove(last_idx.as_object().expect("Provided path should resolve"));
+                },
+                _ => unreachable!(),
+            },
         }
     }
 }

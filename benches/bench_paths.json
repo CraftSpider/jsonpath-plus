@@ -1,0 +1,37 @@
+[
+  {
+    "name": "repeated_brackets",
+    "path": "$['a']['b']['c']['d']['e']",
+    "input": {"a": {"b": {"c": {"d": {"e": null}}}}}
+  },
+  {
+    "name": "repeated_dot",
+    "path": "$.a.b.c.d.e",
+    "input": {"a": {"b": {"c": {"d": {"e": null}}}}}
+  },
+  {
+    "name": "filter_on_array",
+    "path": "$[?(@.name == 'foo')]",
+    "input": [
+      {"name": "foo", "val": true},
+      {"name": "bar", "val": true},
+      {"name": "foo", "val": false},
+      {"name": "bar", "val": false}
+    ]
+  },
+  {
+    "name": "filter_on_object",
+    "path": "$[?(@.val < 10)]",
+    "input": {
+      "a": {"name": "foo", "val": 3},
+      "b": {"name": "bar", "val": 15},
+      "c": {"name": "baz", "val": 7},
+      "d": {"name": "qux", "val": 19}
+    }
+  },
+  {
+    "name": "parent_operator",
+    "path": "$.a.b.^",
+    "input": {"a": {"b": {}}}
+  }
+]

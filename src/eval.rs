@@ -69,12 +69,18 @@ impl<'a> EvalCtx<'a> {
             Value::Array(v) => v
                 .iter()
                 .enumerate()
-                .find(|&(_, p)| core::ptr::eq(p, val))
-                .map(|(idx, _)| Idx::Array(idx)),
+                .find_map(|(idx, p)| if core::ptr::eq(p, val) {
+                    Some(Idx::Array(idx))
+                } else {
+                    None
+                }),
             Value::Object(m) => m
                 .iter()
-                .find(|&(_, p)| core::ptr::eq(p, val))
-                .map(|(idx, _)| Idx::Object(idx.to_string())),
+                .find_map(|(idx, p)| if core::ptr::eq(p, val) {
+                    Some(Idx::Object(idx.to_string()))
+                } else {
+                    None
+                }),
             _ => None,
         }
     }
@@ -83,18 +89,18 @@ impl<'a> EvalCtx<'a> {
         self.parents.get(&RefKey(val)).copied()
     }
 
-    fn parents_recur(&mut self, value: &'a Value) {
-        match value {
+    fn parents_recur(parents: &mut HashMap<RefKey<'a, Value>, &'a Value>, parent: &'a Value) {
+        match parent {
             Value::Array(v) => {
                 for child in v {
-                    self.parents.entry(RefKey(child)).or_insert(value);
-                    self.parents_recur(child);
+                    parents.insert(RefKey(child), parent);
+                    EvalCtx::parents_recur(parents, child);
                 }
             }
             Value::Object(m) => {
                 for (_, child) in m {
-                    self.parents.entry(RefKey(child)).or_insert(value);
-                    self.parents_recur(child);
+                    parents.insert(RefKey(child), parent);
+                    EvalCtx::parents_recur(parents, child);
                 }
             }
             _ => (),
@@ -102,27 +108,21 @@ impl<'a> EvalCtx<'a> {
     }
 
     pub fn prepopulate_parents(&mut self) {
-        self.cur_matched
-            .clone()
-            .into_iter()
-            .for_each(|v| self.parents_recur(v));
+        Self::parents_recur(&mut self.parents, self.root);
     }
 
     pub fn set_matched(&mut self, matched: Vec<&'a Value>) {
         self.cur_matched = matched;
     }
 
-    pub fn apply_matched(&mut self, f: impl Fn(&Self, &'a Value) -> Vec<&'a Value>) {
+    pub fn apply_matched<T>(&mut self, f: impl Fn(&Self, &'a Value) -> T)
+    where
+        T: IntoIterator<Item = &'a Value>,
+    {
         let cur_matched = core::mem::take(&mut self.cur_matched);
         self.cur_matched = cur_matched
             .into_iter()
-            .flat_map(|i| {
-                let results = f(self, i);
-                for &a in &results {
-                    self.parents.entry(RefKey(a)).or_insert(i);
-                }
-                results
-            })
+            .flat_map(|i| f(self, i))
             .collect();
     }
 

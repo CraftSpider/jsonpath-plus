@@ -109,6 +109,61 @@ fn test_delete_in_try_replace() {
 }
 
 #[test]
+fn dot_notation_after_recursive_descent() {
+    let json = json!({
+        "a": {"list": [1, 2, 3], "null": null, "id": []},
+        "b": [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}],
+        "c": 1,
+        "d": false,
+    });
+    let result = find("$..id", &json)
+        .unwrap()
+        .into_iter()
+        .cloned()
+        .map(ValueKey::from)
+        .collect::<HashSet<ValueKey>>();
+
+    assert_eq!(
+        result,
+        HashSet::from([json!([]), json!(1), json!(2)].map(ValueKey::from))
+    );
+}
+
+#[test]
+fn bracket_notation_after_recursive_descent() {
+    let json = json!({
+        "a": {"list": [1, 2, 3], "null": null, "id": []},
+        "b": [{"id": 1, "name": "foo"}, {"id": 2, "name": "bar"}],
+        "c": 1,
+        "d": false,
+    });
+    let result = find("$..['id']", &json)
+        .unwrap()
+        .into_iter()
+        .cloned()
+        .map(ValueKey::from)
+        .collect::<HashSet<ValueKey>>();
+
+    assert_eq!(
+        result,
+        HashSet::from([json!([]), json!(1), json!(2)].map(ValueKey::from))
+    );
+}
+
+#[test]
+fn parent_after_dot_notation() {
+    let json = json!({"a": {"b": true}});
+    let result = find("$.a.b.^", &json)
+        .unwrap();
+
+    let expected = vec![
+        &json.as_object().unwrap()["a"],
+    ];
+
+    assert_eq!(result, expected);
+}
+
+#[test]
 fn parent_after_recursive_descent() {
     let json = json!({
         "a": {"list": [1, 2, 3], "null": null},
