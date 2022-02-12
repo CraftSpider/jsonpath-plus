@@ -19,8 +19,8 @@ impl Path {
             let result = matches!(
                 op,
                 Segment::Dot(_, RawSelector::Parent(_))
-                | Segment::Recursive(_, Some(RawSelector::Parent(_)))
-                | Segment::Bracket(_, BracketSelector::Parent(_))
+                    | Segment::Recursive(_, Some(RawSelector::Parent(_)))
+                    | Segment::Bracket(_, BracketSelector::Parent(_))
             );
             if result {
                 return true;
@@ -209,8 +209,7 @@ impl BracketLit {
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         match self {
             BracketLit::Int(i) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => idx_handle(i.as_int(), v)
-                    .and_then(|idx| v.get(idx)),
+                Value::Array(v) => idx_handle(i.as_int(), v).and_then(|idx| v.get(idx)),
                 _ => None,
             }),
             BracketLit::String(s) => ctx.apply_matched(|_, a| match a {

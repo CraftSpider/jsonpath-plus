@@ -222,7 +222,8 @@ impl BracketSelector {
     fn parser(
         operator: impl Parser<Input, Segment, Error = Error> + Clone + 'static,
     ) -> impl Parser<Input, BracketSelector, Error = Error> {
-        StepRange::parser().map(BracketSelector::StepRange)
+        StepRange::parser()
+            .map(BracketSelector::StepRange)
             .or(Range::parser().map(BracketSelector::Range))
             .or(token::Star::parser().map(BracketSelector::Wildcard))
             .or(token::Caret::parser().map(BracketSelector::Parent))
@@ -231,7 +232,13 @@ impl BracketSelector {
             .or(BracketLit::parser().map(BracketSelector::Literal))
             .padded()
             // Handle unions last to avoid constant backtracking
-            .then(just(',').ignore_then(UnionComponent::parser(operator)).repeated().at_least(1).or_not())
+            .then(
+                just(',')
+                    .ignore_then(UnionComponent::parser(operator))
+                    .repeated()
+                    .at_least(1)
+                    .or_not(),
+            )
             .try_map(|(select, union), _span| {
                 Ok(match union {
                     Some(mut union) => {
@@ -241,12 +248,15 @@ impl BracketSelector {
                         let select_span = _span;
                         union.insert(
                             0,
-                            select
-                                .try_into()
-                                .map_err(|_| Simple::custom(select_span, "Union operator doesn't support wildcard"))?
+                            select.try_into().map_err(|_| {
+                                Simple::custom(
+                                    select_span,
+                                    "Union operator doesn't support wildcard",
+                                )
+                            })?,
                         );
                         BracketSelector::Union(union)
-                    },
+                    }
                     None => select,
                 })
             })

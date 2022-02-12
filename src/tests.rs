@@ -153,12 +153,9 @@ fn bracket_notation_after_recursive_descent() {
 #[test]
 fn parent_after_dot_notation() {
     let json = json!({"a": {"b": true}});
-    let result = find("$.a.b.^", &json)
-        .unwrap();
+    let result = find("$.a.b.^", &json).unwrap();
 
-    let expected = vec![
-        &json.as_object().unwrap()["a"],
-    ];
+    let expected = vec![&json.as_object().unwrap()["a"]];
 
     assert_eq!(result, expected);
 }

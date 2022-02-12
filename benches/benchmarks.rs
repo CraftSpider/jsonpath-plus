@@ -1,9 +1,8 @@
-
-use criterion::{criterion_main, Criterion, BenchmarkId};
-use pprof::criterion::{PProfProfiler, Output};
-use serde_json::Value;
-use serde::Deserialize;
+use criterion::{criterion_main, BenchmarkId, Criterion};
 use jsonpath_plus::JsonPath;
+use pprof::criterion::{Output, PProfProfiler};
+use serde::Deserialize;
+use serde_json::Value;
 
 #[derive(Deserialize)]
 pub struct BenchPaths {
@@ -14,15 +13,13 @@ pub struct BenchPaths {
 
 impl BenchPaths {
     fn read() -> Vec<BenchPaths> {
-        serde_json::from_reader(std::fs::File::open("benches/bench_paths.json").unwrap())
-            .unwrap()
+        serde_json::from_reader(std::fs::File::open("benches/bench_paths.json").unwrap()).unwrap()
     }
 }
 
 fn config_criterion() -> Criterion {
-    Criterion::default().with_profiler(
-        PProfProfiler::new(100, Output::Flamegraph(None))
-    )
+    Criterion::default()
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
         .configure_from_args()
 }
 
@@ -33,9 +30,7 @@ pub fn parse() {
         group.bench_with_input(
             BenchmarkId::from_parameter(path.name),
             &*path.path,
-            |b, p| {
-                b.iter(|| JsonPath::compile(p))
-            }
+            |b, p| b.iter(|| JsonPath::compile(p)),
         );
     }
     group.finish()
@@ -49,16 +44,11 @@ pub fn eval() {
             Some(input) => input,
             None => continue,
         };
-        let json_path = JsonPath::compile(&path.path)
-            .unwrap();
+        let json_path = JsonPath::compile(&path.path).unwrap();
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(path.name),
-            input,
-            |b, val| {
-                b.iter(|| json_path.find(val))
-            }
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(path.name), input, |b, val| {
+            b.iter(|| json_path.find(val))
+        });
     }
     group.finish()
 }

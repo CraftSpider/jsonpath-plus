@@ -12,7 +12,10 @@ pub struct Span {
 
 impl Span {
     pub(crate) fn as_range(self) -> ops::Range<usize> {
-        ops::Range { start: self.start, end: self.end }
+        ops::Range {
+            start: self.start,
+            end: self.end,
+        }
     }
 
     pub(crate) fn join(self, other: Span) -> Span {

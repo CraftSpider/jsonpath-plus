@@ -59,10 +59,10 @@ pub fn try_replace_paths(
             None => match replace_on {
                 Value::Array(v) => {
                     v.remove(last_idx.as_array().expect("Provided path should resolve"));
-                },
+                }
                 Value::Object(m) => {
                     m.remove(last_idx.as_object().expect("Provided path should resolve"));
-                },
+                }
                 _ => unreachable!(),
             },
         }
