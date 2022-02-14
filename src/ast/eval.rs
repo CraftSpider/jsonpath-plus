@@ -228,8 +228,8 @@ impl SubPath {
         for op in &self.segments {
             let result = match op {
                 Segment::Dot(_, RawSelector::Parent(_))
-                    | Segment::Recursive(_, Some(RawSelector::Parent(_)))
-                    | Segment::Bracket(_, BracketSelector::Parent(_)) => true,
+                | Segment::Recursive(_, Some(RawSelector::Parent(_)))
+                | Segment::Bracket(_, BracketSelector::Parent(_)) => true,
                 Segment::Bracket(_, BracketSelector::Path(p)) => p.has_parent(),
                 Segment::Bracket(_, BracketSelector::Filter(f)) => f.has_parent(),
                 _ => false,
