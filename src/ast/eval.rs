@@ -16,12 +16,15 @@ fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
 impl Path {
     pub(crate) fn has_parent(&self) -> bool {
         for op in &self.segments {
-            let result = matches!(
-                op,
+            let result = match op {
                 Segment::Dot(_, RawSelector::Parent(_))
-                    | Segment::Recursive(_, Some(RawSelector::Parent(_)))
-                    | Segment::Bracket(_, BracketSelector::Parent(_))
-            );
+                | Segment::Recursive(_, Some(RawSelector::Parent(_)))
+                | Segment::Bracket(_, BracketSelector::Parent(_)) => true,
+                Segment::Bracket(_, BracketSelector::Path(p)) => p.has_parent(),
+                Segment::Bracket(_, BracketSelector::Filter(f)) => f.has_parent(),
+                _ => false,
+            };
+
             if result {
                 return true;
             }
@@ -221,6 +224,24 @@ impl BracketLit {
 }
 
 impl SubPath {
+    pub(crate) fn has_parent(&self) -> bool {
+        for op in &self.segments {
+            let result = match op {
+                Segment::Dot(_, RawSelector::Parent(_))
+                    | Segment::Recursive(_, Some(RawSelector::Parent(_)))
+                    | Segment::Bracket(_, BracketSelector::Parent(_)) => true,
+                Segment::Bracket(_, BracketSelector::Path(p)) => p.has_parent(),
+                Segment::Bracket(_, BracketSelector::Filter(f)) => f.has_parent(),
+                _ => false,
+            };
+
+            if result {
+                return true;
+            }
+        }
+        return false;
+    }
+
     fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, a: &'a Value) -> Option<Cow<'a, Value>> {
         let relative = match self.kind {
             PathKind::Root(_) => false,
@@ -299,6 +320,10 @@ impl SubPath {
 }
 
 impl Filter {
+    fn has_parent(&self) -> bool {
+        self.inner.has_parent()
+    }
+
     fn eval(&self, ctx: &mut EvalCtx<'_>) {
         ctx.apply_matched(|ctx, a| match a {
             Value::Array(v) => v
@@ -323,6 +348,16 @@ impl Filter {
 }
 
 impl FilterExpr {
+    fn has_parent(&self) -> bool {
+        match self {
+            FilterExpr::Unary(_, inner) => inner.has_parent(),
+            FilterExpr::Binary(left, _, right) => left.has_parent() || right.has_parent(),
+            FilterExpr::Parens(_, inner) => inner.has_parent(),
+            FilterExpr::Path(p) => p.has_parent(),
+            _ => false,
+        }
+    }
+
     fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, val: &'a Value) -> Option<Cow<'a, Value>> {
         match self {
             FilterExpr::Unary(op, inner) => {

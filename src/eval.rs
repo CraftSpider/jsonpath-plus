@@ -118,8 +118,7 @@ impl<'a> EvalCtx<'a> {
     where
         T: IntoIterator<Item = &'a Value>,
     {
-        let cur_matched = core::mem::take(&mut self.cur_matched);
-        self.cur_matched = cur_matched.into_iter().flat_map(|i| f(self, i)).collect();
+        self.cur_matched = self.cur_matched.iter().flat_map(|&i| f(self, i)).collect();
     }
 
     pub fn paths_matched(&self) -> Vec<IdxPath> {
