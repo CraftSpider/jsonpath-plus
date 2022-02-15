@@ -1,13 +1,14 @@
 use super::*;
 use crate::eval::EvalCtx;
 use std::borrow::Cow;
+use either::Either;
 
-use crate::utils::ValueIter;
+use crate::utils::ValueExt;
 use serde_json::Value;
 
 fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
     collect.push(a);
-    ValueIter::new(a).for_each(|a| flatten_recur(collect, a));
+    a.iter().for_each(|a| flatten_recur(collect, a));
 }
 
 impl Path {
@@ -64,7 +65,7 @@ impl Segment {
 impl RawSelector {
     fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         match self {
-            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| ValueIter::new(a)),
+            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| a.iter()),
             RawSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
@@ -118,12 +119,12 @@ impl StepRange {
                 let iter = range(v, start, end).iter();
 
                 if rev {
-                    iter.rev().step_by(step).collect()
+                    Either::Left(iter.rev().step_by(step))
                 } else {
-                    iter.step_by(step).collect()
+                    Either::Right(iter.step_by(step))
                 }
             }
-            _ => vec![],
+            _ => Either::Right([].iter().step_by(1)),
         });
     }
 }
@@ -181,7 +182,7 @@ impl BracketSelector {
             }
             BracketSelector::StepRange(step_range) => step_range.eval(ctx),
             BracketSelector::Range(range) => range.eval(ctx),
-            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| ValueIter::new(a)),
+            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| a.iter()),
             BracketSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
@@ -317,7 +318,7 @@ impl Filter {
 
     fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         ctx.apply_matched(|ctx, a| {
-            ValueIter::new(a)
+            a.iter()
                 .filter(|&a| {
                     self.inner
                         .eval_expr(ctx, a)

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::idx::{Idx, IdxPath};
-use crate::utils::ValueIter;
+use crate::utils::ValueExt;
 use serde_json::Value;
 
 pub type ValueMap<'a> = HashMap<RefKey<'a, Value>, &'a Value>;
@@ -49,7 +49,7 @@ impl<'a, 'b> EvalCtx<'a, 'b> {
     }
 
     fn parents_recur(parents: &mut HashMap<RefKey<'a, Value>, &'a Value>, parent: &'a Value) {
-        ValueIter::new(parent).for_each(|child| {
+        parent.iter().for_each(|child| {
             parents.insert(RefKey(child), parent);
             EvalCtx::parents_recur(parents, child)
         })

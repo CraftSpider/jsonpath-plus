@@ -13,6 +13,7 @@ repository = "https://github.com/CraftSpider/jsonpath-plus"
 [dependencies]
 chumsky = { version = "0.8", default-features = false }
 serde_json = "1.0"
+either = "1.6"
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

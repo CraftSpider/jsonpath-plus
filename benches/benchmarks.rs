@@ -36,7 +36,7 @@ pub fn parse() {
     group.finish()
 }
 
-pub fn eval() {
+pub fn find() {
     let mut c = config_criterion();
     let mut group = c.benchmark_group("JsonPath::find");
     for path in BenchPaths::read() {
@@ -53,4 +53,21 @@ pub fn eval() {
     group.finish()
 }
 
-criterion_main!(parse, eval);
+pub fn find_paths() {
+    let mut c = config_criterion();
+    let mut group = c.benchmark_group("JsonPath::find_paths");
+    for path in BenchPaths::read() {
+        let input = match &path.input {
+            Some(input) => input,
+            None => continue,
+        };
+        let json_path = JsonPath::compile(&path.path).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(path.name), input, |b, val| {
+            b.iter(|| json_path.find_paths(val))
+        });
+    }
+    group.finish()
+}
+
+criterion_main!(parse, find, find_paths);
