@@ -2,15 +2,12 @@ use super::*;
 use crate::eval::EvalCtx;
 use std::borrow::Cow;
 
+use crate::utils::ValueIter;
 use serde_json::Value;
 
 fn flatten_recur<'a>(collect: &mut Vec<&'a Value>, a: &'a Value) {
     collect.push(a);
-    match a {
-        Value::Array(v) => v.iter().for_each(|a| flatten_recur(collect, a)),
-        Value::Object(m) => m.values().for_each(|a| flatten_recur(collect, a)),
-        _ => (),
-    }
+    ValueIter::new(a).for_each(|a| flatten_recur(collect, a));
 }
 
 impl Path {
@@ -29,10 +26,10 @@ impl Path {
                 return true;
             }
         }
-        return false;
+        false
     }
 
-    pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    pub(crate) fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         for op in &self.segments {
             op.eval(ctx);
         }
@@ -46,7 +43,7 @@ impl Path {
 }
 
 impl Segment {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         match self {
             Segment::Dot(_, op) => op.eval(ctx),
             Segment::Bracket(_, op) => op.eval(ctx),
@@ -65,13 +62,9 @@ impl Segment {
 }
 
 impl RawSelector {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         match self {
-            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => v.iter().collect(),
-                Value::Object(m) => m.values().collect(),
-                _ => vec![],
-            }),
+            RawSelector::Wildcard(_) => ctx.apply_matched(|_, a| ValueIter::new(a)),
             RawSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
@@ -110,7 +103,7 @@ fn range(slice: &[Value], start: usize, end: usize) -> &[Value] {
 }
 
 impl StepRange {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         let start = self.start.as_ref().map_or(0, |i| i.as_int());
         let end = self.end.as_ref().map_or(i64::MAX, |i| i.as_int());
         let step = self.step.as_ref().map_or(1, |i| i.as_int().get());
@@ -136,7 +129,7 @@ impl StepRange {
 }
 
 impl Range {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         let start = self.start.as_ref().map_or(0, |i| i.as_int());
         let end = self.end.as_ref().map_or(i64::MAX, |i| i.as_int());
 
@@ -145,15 +138,15 @@ impl Range {
                 let start = idx_handle(start, v).unwrap_or(0);
                 let end = idx_handle(end, v).unwrap_or(0);
 
-                range(v, start, end).iter().collect()
+                range(v, start, end)
             }
-            _ => vec![],
+            _ => &[],
         });
     }
 }
 
 impl UnionComponent {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         match self {
             UnionComponent::StepRange(step_range) => step_range.eval(ctx),
             UnionComponent::Range(range) => range.eval(ctx),
@@ -174,24 +167,21 @@ impl UnionComponent {
 }
 
 impl BracketSelector {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         match self {
             BracketSelector::Union(components) => {
                 let mut new_matched = Vec::new();
+                let old_matched = ctx.get_matched().to_owned();
                 for component in components {
-                    let mut new_ctx = ctx.child_ctx();
-                    component.eval(&mut new_ctx);
-                    new_matched.extend(new_ctx.into_matched());
+                    ctx.set_matched(old_matched.clone());
+                    component.eval(ctx);
+                    new_matched.extend(ctx.get_matched());
                 }
                 ctx.set_matched(new_matched);
             }
             BracketSelector::StepRange(step_range) => step_range.eval(ctx),
             BracketSelector::Range(range) => range.eval(ctx),
-            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| match a {
-                Value::Array(v) => v.iter().collect(),
-                Value::Object(m) => m.values().collect(),
-                _ => vec![],
-            }),
+            BracketSelector::Wildcard(_) => ctx.apply_matched(|_, a| ValueIter::new(a)),
             BracketSelector::Parent(_) => {
                 ctx.apply_matched(|ctx, a| ctx.parent_of(a));
             }
@@ -209,7 +199,7 @@ impl BracketSelector {
 }
 
 impl BracketLit {
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
         match self {
             BracketLit::Int(i) => ctx.apply_matched(|_, a| match a {
                 Value::Array(v) => idx_handle(i.as_int(), v).and_then(|idx| v.get(idx)),
@@ -239,10 +229,10 @@ impl SubPath {
                 return true;
             }
         }
-        return false;
+        false
     }
 
-    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, a: &'a Value) -> Option<Cow<'a, Value>> {
+    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a, '_>, a: &'a Value) -> Option<Cow<'a, Value>> {
         let relative = match self.kind {
             PathKind::Root(_) => false,
             PathKind::Relative(_) => true,
@@ -250,7 +240,7 @@ impl SubPath {
 
         let new_root = if relative { a } else { ctx.root() };
 
-        let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents().clone());
+        let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents());
         for op in &self.segments {
             op.eval(&mut new_ctx);
         }
@@ -269,7 +259,7 @@ impl SubPath {
         }
     }
 
-    fn eval_match(&self, ctx: &mut EvalCtx<'_>) {
+    fn eval_match(&self, ctx: &mut EvalCtx<'_, '_>) {
         let relative = match self.kind {
             PathKind::Root(_) => false,
             PathKind::Relative(_) => true,
@@ -278,24 +268,26 @@ impl SubPath {
         ctx.apply_matched(|ctx, a| {
             let new_root = if relative { a } else { ctx.root() };
 
-            let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents().clone());
+            let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents());
             for op in &self.segments {
                 op.eval(&mut new_ctx);
             }
-            let matched = new_ctx.into_matched();
 
-            let matched = if self.tilde.is_some() {
-                matched
-                    .into_iter()
-                    .map(|a| Cow::Owned(ctx.idx_of(a).unwrap().into()))
-                    .collect::<Vec<_>>()
-            } else {
-                matched.into_iter().map(Cow::Borrowed).collect()
-            };
+            let id = self.tilde.is_some();
 
-            matched
+            new_ctx
+                .into_matched()
                 .into_iter()
-                .flat_map(|mat| match a {
+                .map(move |a| {
+                    if id {
+                        Cow::Owned(ctx.idx_of(a).unwrap().into())
+                    } else {
+                        Cow::Borrowed(a)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .flat_map(move |mat| match a {
                     Value::Array(v) => {
                         let idx = match &*mat {
                             Value::Number(n) => idx_handle(n.as_i64().unwrap(), v),
@@ -314,7 +306,6 @@ impl SubPath {
                     }
                     _ => None,
                 })
-                .collect::<Vec<_>>()
         });
     }
 }
@@ -324,25 +315,15 @@ impl Filter {
         self.inner.has_parent()
     }
 
-    fn eval(&self, ctx: &mut EvalCtx<'_>) {
-        ctx.apply_matched(|ctx, a| match a {
-            Value::Array(v) => v
-                .iter()
+    fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
+        ctx.apply_matched(|ctx, a| {
+            ValueIter::new(a)
                 .filter(|&a| {
                     self.inner
                         .eval_expr(ctx, a)
                         .map_or(false, |c| c.as_bool() == Some(true))
                 })
-                .collect(),
-            Value::Object(m) => m
-                .values()
-                .filter(|&a| {
-                    self.inner
-                        .eval_expr(ctx, a)
-                        .map_or(false, |c| c.as_bool() == Some(true))
-                })
-                .collect(),
-            _ => vec![],
+                .collect::<Vec<_>>()
         });
     }
 }
@@ -358,7 +339,7 @@ impl FilterExpr {
         }
     }
 
-    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a>, val: &'a Value) -> Option<Cow<'a, Value>> {
+    fn eval_expr<'a>(&self, ctx: &EvalCtx<'a, '_>, val: &'a Value) -> Option<Cow<'a, Value>> {
         match self {
             FilterExpr::Unary(op, inner) => {
                 let inner = inner.eval_expr(ctx, val)?;

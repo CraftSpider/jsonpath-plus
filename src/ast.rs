@@ -6,21 +6,23 @@
 
 use core::num::NonZeroI64;
 
+mod error;
 mod eval;
 mod parse;
-#[cfg(feature = "spanned")]
 mod span;
 #[cfg(test)]
 mod tests;
 mod token;
 
+pub use error::{FailReason, ParseFail};
+pub use span::Span;
 #[cfg(feature = "spanned")]
-pub use span::{Span, Spanned};
+pub use span::Spanned;
 
 // Aliases
 
 type Input = char;
-type Error = chumsky::error::Simple<char>;
+type Error = ParseFail<char, ()>;
 
 // Atoms
 

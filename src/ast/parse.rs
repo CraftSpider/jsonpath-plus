@@ -8,7 +8,7 @@ impl Ident {
             .at_least(1)
             .map_with_span(|val, _span| Ident {
                 #[cfg(feature = "spanned")]
-                span: _span.into(),
+                span: _span,
                 val: String::from_iter(val),
             })
     }
@@ -21,7 +21,7 @@ impl IntLit {
             .then(filter(|c: &char| c.is_numeric()).repeated().at_least(1))
             .map_with_span(|(neg, val), _span| IntLit {
                 #[cfg(feature = "spanned")]
-                span: _span.into(),
+                span: _span,
                 val: match (String::from_iter(val).parse::<i64>().unwrap(), neg) {
                     (val, Some(_)) => -val,
                     (val, None) => val,
@@ -39,7 +39,7 @@ impl NonZeroIntLit {
                 val: il
                     .as_int()
                     .try_into()
-                    .map_err(|_| Simple::custom(span, "Expected a non-zero integer literal"))?,
+                    .map_err(|_| ParseFail::custom(span, "Expected a non-zero integer literal"))?,
             })
         })
     }
@@ -52,7 +52,7 @@ impl StringContent {
             .repeated()
             .map_with_span(|content, _span| StringContent {
                 #[cfg(feature = "spanned")]
-                span: _span.into(),
+                span: _span,
                 val: String::from_iter(content),
             })
     }
@@ -99,7 +99,7 @@ impl BoolLit {
             .or(just("false").to(false))
             .map_with_span(|val, _span| BoolLit {
                 #[cfg(feature = "spanned")]
-                span: _span.into(),
+                span: _span,
                 val,
             })
     }
@@ -109,7 +109,7 @@ impl NullLit {
     fn parser() -> impl Parser<Input, NullLit, Error = Error> {
         just::<_, _, Error>("null").map_with_span(|_, _span| NullLit {
             #[cfg(feature = "spanned")]
-            span: _span.into(),
+            span: _span,
         })
     }
 }
@@ -243,13 +243,13 @@ impl BracketSelector {
                 Ok(match union {
                     Some(mut union) => {
                         #[cfg(feature = "spanned")]
-                        let select_span = select.span().as_range();
+                        let select_span = select.span();
                         #[cfg(not(feature = "spanned"))]
                         let select_span = _span;
                         union.insert(
                             0,
                             select.try_into().map_err(|_| {
-                                Simple::custom(
+                                ParseFail::custom(
                                     select_span,
                                     "Union operator doesn't support wildcard",
                                 )

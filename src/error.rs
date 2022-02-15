@@ -4,19 +4,19 @@ use core::fmt;
 use std::error;
 use std::error::Error;
 
+use crate::ast::ParseFail;
 use crate::Idx;
-use chumsky::error::Simple;
 use serde_json::Value;
 
 /// Error returned by a failure to parse a provided JSON Path
 #[derive(Debug)]
 pub struct ParseError {
     src: String,
-    errs: Vec<Simple<char>>,
+    errs: Vec<ParseFail<char, ()>>,
 }
 
 impl ParseError {
-    pub(crate) fn new(src: &str, errs: Vec<Simple<char>>) -> ParseError {
+    pub(crate) fn new(src: &str, errs: Vec<ParseFail<char, ()>>) -> ParseError {
         ParseError {
             src: src.to_string(),
             errs,
@@ -28,8 +28,9 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Error Parsing JSON Path:")?;
         writeln!(f, "{}", self.src)?;
-        for err in &self.errs {
-            writeln!(f, "{}", err)?;
+        for _err in &self.errs {
+            todo!();
+            // writeln!(f, "{}", err)?;
         }
         Ok(())
     }

@@ -1,8 +1,12 @@
 use core::hash::{Hash, Hasher};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::idx::{Idx, IdxPath};
+use crate::utils::ValueIter;
 use serde_json::Value;
+
+pub type ValueMap<'a> = HashMap<RefKey<'a, Value>, &'a Value>;
 
 #[derive(Clone)]
 pub struct RefKey<'a, T>(&'a T);
@@ -21,38 +25,38 @@ impl<'a, T> Hash for RefKey<'a, T> {
     }
 }
 
-pub struct EvalCtx<'a> {
+pub struct EvalCtx<'a, 'b> {
     root: &'a Value,
     cur_matched: Vec<&'a Value>,
-    parents: HashMap<RefKey<'a, Value>, &'a Value>,
+    parents: Cow<'b, ValueMap<'a>>,
 }
 
-impl<'a> EvalCtx<'a> {
-    pub fn new(root: &'a Value) -> EvalCtx<'a> {
+impl<'a, 'b> EvalCtx<'a, 'b> {
+    pub fn new(root: &'a Value) -> EvalCtx<'a, 'b> {
         EvalCtx {
             root,
             cur_matched: vec![root],
-            parents: HashMap::new(),
+            parents: Cow::Owned(HashMap::new()),
         }
     }
 
-    pub fn new_parents(
-        root: &'a Value,
-        parents: HashMap<RefKey<'a, Value>, &'a Value>,
-    ) -> EvalCtx<'a> {
+    pub fn new_parents<'c>(root: &'a Value, parents: &'c ValueMap<'a>) -> EvalCtx<'a, 'c> {
         EvalCtx {
             root,
             cur_matched: vec![root],
-            parents,
+            parents: Cow::Borrowed(parents),
         }
     }
 
-    pub fn child_ctx(&self) -> EvalCtx<'a> {
-        EvalCtx {
-            root: self.root,
-            cur_matched: self.cur_matched.clone(),
-            parents: self.parents.clone(),
-        }
+    fn parents_recur(parents: &mut HashMap<RefKey<'a, Value>, &'a Value>, parent: &'a Value) {
+        ValueIter::new(parent).for_each(|child| {
+            parents.insert(RefKey(child), parent);
+            EvalCtx::parents_recur(parents, child)
+        })
+    }
+
+    pub fn prepopulate_parents(&mut self) {
+        Self::parents_recur(self.parents.to_mut(), self.root);
     }
 
     pub fn root(&self) -> &'a Value {
@@ -60,7 +64,7 @@ impl<'a> EvalCtx<'a> {
     }
 
     pub fn all_parents(&self) -> &HashMap<RefKey<'a, Value>, &'a Value> {
-        &self.parents
+        &*self.parents
     }
 
     pub fn idx_of(&self, val: &'a Value) -> Option<Idx> {
@@ -85,29 +89,11 @@ impl<'a> EvalCtx<'a> {
     }
 
     pub fn parent_of(&self, val: &'a Value) -> Option<&'a Value> {
-        self.parents.get(&RefKey(val)).copied()
+        self.all_parents().get(&RefKey(val)).copied()
     }
 
-    fn parents_recur(parents: &mut HashMap<RefKey<'a, Value>, &'a Value>, parent: &'a Value) {
-        match parent {
-            Value::Array(v) => {
-                for child in v {
-                    parents.insert(RefKey(child), parent);
-                    EvalCtx::parents_recur(parents, child);
-                }
-            }
-            Value::Object(m) => {
-                for (_, child) in m {
-                    parents.insert(RefKey(child), parent);
-                    EvalCtx::parents_recur(parents, child);
-                }
-            }
-            _ => (),
-        }
-    }
-
-    pub fn prepopulate_parents(&mut self) {
-        Self::parents_recur(&mut self.parents, self.root);
+    pub fn get_matched(&self) -> &[&'a Value] {
+        &self.cur_matched
     }
 
     pub fn set_matched(&mut self, matched: Vec<&'a Value>) {

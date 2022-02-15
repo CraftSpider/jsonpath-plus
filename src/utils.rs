@@ -1,5 +1,46 @@
 use crate::idx::IdxPath;
 use serde_json::Value;
+use std::iter::FusedIterator;
+
+pub enum ValueIter<'a> {
+    Array(std::slice::Iter<'a, Value>),
+    Object(serde_json::map::Values<'a>),
+    Other,
+}
+
+impl<'a> ValueIter<'a> {
+    pub fn new(val: &'a Value) -> ValueIter<'a> {
+        match val {
+            Value::Array(v) => ValueIter::Array(v.iter()),
+            Value::Object(m) => ValueIter::Object(m.values()),
+            _ => ValueIter::Other,
+        }
+    }
+}
+
+impl<'a> Iterator for ValueIter<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ValueIter::Array(iter) => iter.next(),
+            ValueIter::Object(iter) => iter.next(),
+            ValueIter::Other => None,
+        }
+    }
+}
+
+impl FusedIterator for ValueIter<'_> {}
+
+impl ExactSizeIterator for ValueIter<'_> {
+    fn len(&self) -> usize {
+        match self {
+            ValueIter::Array(iter) => iter.len(),
+            ValueIter::Object(iter) => iter.len(),
+            ValueIter::Other => 0,
+        }
+    }
+}
 
 pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
     // Ensure we always resolve paths longest to shortest, so if we match paths that are children

@@ -1,3 +1,4 @@
+#[cfg(feature = "spanned")]
 use super::*;
 
 #[test]

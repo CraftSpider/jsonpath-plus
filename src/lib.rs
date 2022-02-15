@@ -23,6 +23,7 @@
 
 use serde_json::Value;
 
+use ast::Span;
 use error::{ParseError, ParseOrJsonError};
 use eval::EvalCtx;
 use idx::{Idx, IdxPath};
@@ -65,10 +66,21 @@ impl JsonPath {
     ///
     /// - If the provided pattern fails to parse as a valid JSON path
     pub fn compile(pattern: &str) -> Result<JsonPath, ParseError> {
-        use chumsky::Parser;
+        use chumsky::{Parser, Stream};
+
+        let len = pattern.chars().count();
+        let stream = Stream::from_iter(
+            Span::from(len..len),
+            Box::new(
+                pattern
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| (c, Span::from(i..i + 1))),
+            ),
+        );
 
         Self::parser()
-            .parse(pattern)
+            .parse(stream)
             .map_err(|e| ParseError::new(pattern, e))
     }
 

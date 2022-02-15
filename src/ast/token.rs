@@ -20,8 +20,8 @@ macro_rules! wrapping_tokens {
                 pub(super) fn parser<T>(item: impl Parser<Input, T, Error = Error>) -> impl Parser<Input, (Self, T), Error = Error> {
                     item.delimited_by(just($start), just($end))
                         .map_with_span(|inner, span| {
-                            let start = span.start..(span.start + 1);
-                            let end = (span.end - 1)..span.end;
+                            let start = span.start()..(span.start() + 1);
+                            let end = (span.end() - 1)..span.end();
 
                             ($name(start.into(), end.into()), inner)
                         })
