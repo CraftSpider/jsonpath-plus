@@ -96,15 +96,28 @@ impl<'a, 'b> EvalCtx<'a, 'b> {
         &self.cur_matched
     }
 
+    #[inline]
     pub fn set_matched(&mut self, matched: Vec<&'a Value>) {
         self.cur_matched = matched;
     }
 
+    #[inline]
+    pub fn apply_matched_ref<'c, T>(
+        &'c self,
+        f: impl Fn(&'c Self, &'a Value) -> T,
+    ) -> Vec<&'a Value>
+    where
+        T: IntoIterator<Item = &'a Value>,
+    {
+        self.cur_matched.iter().flat_map(|&i| f(self, i)).collect()
+    }
+
+    #[inline]
     pub fn apply_matched<T>(&mut self, f: impl Fn(&Self, &'a Value) -> T)
     where
         T: IntoIterator<Item = &'a Value>,
     {
-        self.cur_matched = self.cur_matched.iter().flat_map(|&i| f(self, i)).collect();
+        self.cur_matched = self.apply_matched_ref(f);
     }
 
     pub fn paths_matched(&self) -> Vec<IdxPath> {

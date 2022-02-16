@@ -1,7 +1,7 @@
-use std::iter::FusedIterator;
 use crate::idx::IdxPath;
-use serde_json::Value;
 use crate::Idx;
+use serde_json::Value;
+use std::iter::FusedIterator;
 
 pub enum ValueIter<'a> {
     Array(std::slice::Iter<'a, Value>),
@@ -41,7 +41,8 @@ impl<'a> FusedIterator for ValueIter<'a>
 where
     std::slice::Iter<'a, Value>: FusedIterator,
     serde_json::map::Values<'a>: FusedIterator,
-{}
+{
+}
 
 impl DoubleEndedIterator for ValueIter<'_> {
     #[inline]
@@ -79,11 +80,13 @@ impl ValueExt for Value {
     #[inline]
     fn remove(&mut self, key: &Idx) -> Option<Value> {
         match (self, key) {
-            (Value::Array(v), Idx::Array(idx)) => if v.len() > *idx {
-                Some(v.remove(*idx))
-            } else {
-                None
-            },
+            (Value::Array(v), Idx::Array(idx)) => {
+                if v.len() > *idx {
+                    Some(v.remove(*idx))
+                } else {
+                    None
+                }
+            }
             (Value::Object(m), Idx::Object(idx)) => m.remove(idx),
             _ => None,
         }
@@ -100,7 +103,8 @@ pub fn delete_paths(mut paths: Vec<IdxPath>, out: &mut Value) {
             .resolve_on_mut(out)
             .expect("Could resolve path");
         let last_idx = &path.raw_path()[path.len() - 1];
-        delete_on.remove(last_idx)
+        delete_on
+            .remove(last_idx)
             .expect("Provided path should resolve");
     }
 }
@@ -139,8 +143,10 @@ pub fn try_replace_paths(
         match new {
             Some(new) => replace_on[last_idx] = new,
             None => {
-                replace_on.remove(last_idx).expect("Provided path should resolve");
-            },
+                replace_on
+                    .remove(last_idx)
+                    .expect("Provided path should resolve");
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::eval::EvalCtx;
-use std::borrow::Cow;
 use either::Either;
+use std::borrow::Cow;
 
 use crate::utils::ValueExt;
 use serde_json::Value;
@@ -266,7 +266,7 @@ impl SubPath {
             PathKind::Relative(_) => true,
         };
 
-        ctx.apply_matched(|ctx, a| {
+        ctx.set_matched(ctx.apply_matched_ref(|ctx, a| {
             let new_root = if relative { a } else { ctx.root() };
 
             let mut new_ctx = EvalCtx::new_parents(new_root, ctx.all_parents());
@@ -286,8 +286,6 @@ impl SubPath {
                         Cow::Borrowed(a)
                     }
                 })
-                .collect::<Vec<_>>()
-                .into_iter()
                 .flat_map(move |mat| match a {
                     Value::Array(v) => {
                         let idx = match &*mat {
@@ -307,7 +305,7 @@ impl SubPath {
                     }
                     _ => None,
                 })
-        });
+        }));
     }
 }
 
@@ -317,15 +315,13 @@ impl Filter {
     }
 
     fn eval(&self, ctx: &mut EvalCtx<'_, '_>) {
-        ctx.apply_matched(|ctx, a| {
-            a.iter()
-                .filter(|&a| {
-                    self.inner
-                        .eval_expr(ctx, a)
-                        .map_or(false, |c| c.as_bool() == Some(true))
-                })
-                .collect::<Vec<_>>()
-        });
+        ctx.set_matched(ctx.apply_matched_ref(|ctx, a| {
+            a.iter().filter(|&a| {
+                self.inner
+                    .eval_expr(ctx, a)
+                    .map_or(false, |c| c.as_bool() == Some(true))
+            })
+        }));
     }
 }
 

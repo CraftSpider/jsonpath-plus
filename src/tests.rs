@@ -111,15 +111,13 @@ fn test_delete_in_try_replace() {
 #[test]
 fn root_subpath_after_descent() {
     let json = json!({"id": "foo", "a": {"b": {"c": {"id": "baz", "foo": 1, "bar": 2, "baz": 3}}}});
-    let result = find("$.a.b.c[$.id]", &json)
-        .unwrap();
+    let result = find("$.a.b.c[$.id]", &json).unwrap();
 
-    let expected = [
-        &json.as_object().unwrap()["a"]
-            .as_object().unwrap()["b"]
-            .as_object().unwrap()["c"]
-            .as_object().unwrap()["foo"]
-    ];
+    let expected = [&json.as_object().unwrap()["a"].as_object().unwrap()["b"]
+        .as_object()
+        .unwrap()["c"]
+        .as_object()
+        .unwrap()["foo"]];
 
     assert_eq!(result, expected);
 }
@@ -127,15 +125,13 @@ fn root_subpath_after_descent() {
 #[test]
 fn relative_subpath_after_descent() {
     let json = json!({"id": "foo", "a": {"b": {"c": {"id": "baz", "foo": 1, "bar": 2, "baz": 3}}}});
-    let result = find("$.a.b.c[@.id]", &json)
-        .unwrap();
+    let result = find("$.a.b.c[@.id]", &json).unwrap();
 
-    let expected = [
-        &json.as_object().unwrap()["a"]
-            .as_object().unwrap()["b"]
-            .as_object().unwrap()["c"]
-            .as_object().unwrap()["baz"]
-    ];
+    let expected = [&json.as_object().unwrap()["a"].as_object().unwrap()["b"]
+        .as_object()
+        .unwrap()["c"]
+        .as_object()
+        .unwrap()["baz"]];
 
     assert_eq!(result, expected);
 }
