@@ -1,27 +1,9 @@
-use criterion::{criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_main, BenchmarkId};
 use jsonpath_plus::JsonPath;
-use pprof::criterion::{Output, PProfProfiler};
-use serde::Deserialize;
-use serde_json::Value;
 
-#[derive(Deserialize)]
-pub struct BenchPaths {
-    name: String,
-    path: String,
-    input: Option<Value>,
-}
+mod utils;
 
-impl BenchPaths {
-    fn read() -> Vec<BenchPaths> {
-        serde_json::from_reader(std::fs::File::open("benches/bench_paths.json").unwrap()).unwrap()
-    }
-}
-
-fn config_criterion() -> Criterion {
-    Criterion::default()
-        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
-        .configure_from_args()
-}
+use utils::{config_criterion, BenchPaths};
 
 pub fn parse() {
     let mut c = config_criterion();
