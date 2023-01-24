@@ -1,6 +1,5 @@
-
 use criterion::Criterion;
-use pprof::criterion::{PProfProfiler, Output};
+use pprof::criterion::{Output, PProfProfiler};
 use serde::Deserialize;
 use serde_json::Value;
 

@@ -1,4 +1,3 @@
-
 mod utils;
 
 use criterion::{criterion_main, BenchmarkId};
@@ -17,15 +16,11 @@ pub fn jsonpath_plus() {
         );
 
         if let Some(input) = path.input {
-            let json_path = JsonPath::compile(&path.path)
-                .unwrap();
-            group.bench_with_input(
-                BenchmarkId::new("find", path.name),
-                &input,
-                |b, p| b.iter(|| json_path.find(p)),
-            );
+            let json_path = JsonPath::compile(&path.path).unwrap();
+            group.bench_with_input(BenchmarkId::new("find", path.name), &input, |b, p| {
+                b.iter(|| json_path.find(p))
+            });
         }
-
     }
     group.finish()
 }
@@ -37,7 +32,10 @@ pub fn jsonpath_lib() {
     let mut group = c.benchmark_group("jsonpath_lib");
     for path in BenchPaths::read() {
         if let Err(e) = Compiled::compile(&path.path) {
-            eprintln!("jsonpath_lib doesn't support path: \"{}\", error {}", path.path, e);
+            eprintln!(
+                "jsonpath_lib doesn't support path: \"{}\", error {}",
+                path.path, e
+            );
             continue;
         }
 
@@ -49,13 +47,10 @@ pub fn jsonpath_lib() {
 
         if let Some(input) = path.input {
             let json_path = Compiled::compile(&path.path).unwrap();
-            group.bench_with_input(
-                BenchmarkId::new("find", path.name),
-                &input,
-                |b, p| b.iter(|| json_path.select(p)),
-            );
+            group.bench_with_input(BenchmarkId::new("find", path.name), &input, |b, p| {
+                b.iter(|| json_path.select(p))
+            });
         }
-
     }
     group.finish()
 }
