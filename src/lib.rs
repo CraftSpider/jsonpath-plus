@@ -17,13 +17,18 @@
     clippy::ptr_as_ptr,
     clippy::cloned_instead_of_copied,
     clippy::unreadable_literal,
-    clippy::must_use_candidate
+    clippy::must_use_candidate,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 use serde_json::Value;
 
 use ast::Span;
+use ast::eval::Eval;
 use error::{ParseError, ParseOrJsonError};
 use eval::EvalCtx;
 use idx::{Idx, IdxPath};
@@ -91,7 +96,7 @@ impl JsonPath {
         if self.has_parent() {
             ctx.prepopulate_parents();
         }
-        self.eval(&mut ctx);
+        self.eval(&mut ctx).unwrap();
         ctx.into_matched()
     }
 
@@ -101,7 +106,7 @@ impl JsonPath {
     pub fn find_paths(&self, value: &Value) -> Vec<IdxPath> {
         let mut ctx = EvalCtx::new(value);
         ctx.prepopulate_parents();
-        self.eval(&mut ctx);
+        self.eval(&mut ctx).unwrap();
         ctx.paths_matched()
     }
 

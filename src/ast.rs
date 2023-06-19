@@ -7,7 +7,7 @@
 use core::num::NonZeroI64;
 
 mod error;
-mod eval;
+pub(crate) mod eval;
 mod parse;
 mod span;
 #[cfg(test)]

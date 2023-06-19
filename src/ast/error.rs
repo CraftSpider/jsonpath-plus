@@ -6,27 +6,63 @@ use std::collections::BTreeSet;
 #[derive(Debug, PartialEq)]
 pub enum FailReason<I> {
     /// An unexpected token at a span
-    Unexpected(Span),
+    Unexpected {
+        /// The set of expected tokens
+        expected: BTreeSet<Option<I>>,
+        /// The found token
+        found: Option<I>,
+    },
     /// An unclosed delimiter was encountered
     Unclosed {
-        /// The span of the found token
-        found_span: Span,
         /// The span of the unclosed starting token
         unclosed_span: Span,
+        /// The expected tokens
+        expected: BTreeSet<Option<I>>,
+        /// The found token
+        found: Option<I>,
         /// The expected ending delimiter
         delimiter: I,
     },
     /// A custom message and span
-    Custom(Span, String),
+    Custom(String),
     /// Multiple reasons merged together
     MultiReason(Vec<FailReason<I>>),
 }
 
 impl<I> FailReason<I> {
-    fn into_vec(self) -> Vec<FailReason<I>> {
-        match self {
-            FailReason::MultiReason(v) => v,
-            _ => vec![self],
+    fn merge(self, other: FailReason<I>) -> FailReason<I>
+    where
+        I: Ord,
+    {
+        match (self, other) {
+            (
+                FailReason::Unexpected { expected: e1, found },
+                FailReason::Unexpected { expected: e2, found: _ }
+            ) => {
+                FailReason::Unexpected { expected: e1.into_iter().chain(e2.into_iter()).collect(), found }
+            },
+            (
+                FailReason::MultiReason(mut multi1),
+                FailReason::MultiReason(multi2),
+            ) => {
+                multi1.extend(multi2);
+                FailReason::MultiReason(multi1)
+            },
+            (
+                FailReason::MultiReason(mut multi),
+                other,
+            ) => {
+                multi.push(other);
+                FailReason::MultiReason(multi)
+            },
+            (
+                other,
+                FailReason::MultiReason(mut multi),
+            ) => {
+                multi.push(other);
+                FailReason::MultiReason(multi)
+            },
+            (this, other) => FailReason::MultiReason(vec![this, other]),
         }
     }
 }
@@ -34,9 +70,8 @@ impl<I> FailReason<I> {
 /// A single parse failure error
 #[derive(Debug)]
 pub struct ParseFail<I: Ord, L> {
+    span: Span,
     reason: FailReason<I>,
-    expected: BTreeSet<Option<I>>,
-    found: Option<I>,
     label: Option<L>,
 }
 
@@ -44,9 +79,8 @@ impl<I: Ord, L> ParseFail<I, L> {
     /// Create a custom parse failure
     pub(crate) fn custom(span: Span, message: &str) -> ParseFail<I, L> {
         ParseFail {
-            reason: FailReason::Custom(span, message.to_string()),
-            expected: BTreeSet::new(),
-            found: None,
+            span,
+            reason: FailReason::Custom(message.to_string()),
             label: None,
         }
     }
@@ -67,9 +101,11 @@ impl<I: Ord, L> chumsky::Error<I> for ParseFail<I, L> {
         found: Option<I>,
     ) -> Self {
         ParseFail {
-            reason: FailReason::Unexpected(span),
-            expected: expected.into_iter().collect(),
-            found,
+            span,
+            reason: FailReason::Unexpected {
+                expected: expected.into_iter().collect(),
+                found,
+            },
             label: None,
         }
     }
@@ -82,13 +118,13 @@ impl<I: Ord, L> chumsky::Error<I> for ParseFail<I, L> {
         found: Option<I>,
     ) -> Self {
         ParseFail {
+            span,
             reason: FailReason::Unclosed {
                 delimiter: unclosed,
-                found_span: span,
+                expected: BTreeSet::from([Some(expected)]),
+                found,
                 unclosed_span,
             },
-            expected: BTreeSet::from([Some(expected)]),
-            found,
             label: None,
         }
     }
@@ -99,22 +135,10 @@ impl<I: Ord, L> chumsky::Error<I> for ParseFail<I, L> {
     }
 
     fn merge(self, other: Self) -> Self {
-        let mut reason = self.reason.into_vec();
-        reason.extend(other.reason.into_vec());
-        reason.dedup();
-        let reason = if reason.len() == 1 {
-            reason.remove(0)
-        } else {
-            FailReason::MultiReason(reason)
-        };
-
-        let mut expected = self.expected;
-        expected.extend(other.expected);
-
+        let reason = self.reason.merge(other.reason);
         ParseFail {
+            span: self.span,
             reason,
-            expected,
-            found: self.found.or(other.found),
             label: self.label.or(other.label),
         }
     }

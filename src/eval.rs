@@ -1,9 +1,10 @@
+use core::fmt;
 use core::hash::{Hash, Hasher};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::idx::{Idx, IdxPath};
-use crate::utils::ValueExt;
+use crate::utils::{MaxMin, ValueExt};
 use serde_json::Value;
 
 pub type ValueMap<'a> = HashMap<RefKey<'a, Value>, &'a Value>;
@@ -22,6 +23,43 @@ impl<'a, T> Eq for RefKey<'a, T> {}
 impl<'a, T> Hash for RefKey<'a, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_usize(self.0 as *const T as usize);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Type {
+    Null,
+    Bool,
+    Number,
+    String,
+    Array,
+    Object,
+
+    Int,
+    Float,
+}
+
+#[derive(Debug)]
+pub enum EvalErr {
+    Unsupported(String),
+    OutOfRange(String),
+    MatchedMany,
+    MatchedNone,
+    BadIdx,
+    MismatchedTypes {
+        expected: Type,
+        found: Type,
+    },
+}
+
+impl EvalErr {
+    pub(crate) fn out_of_range<I: fmt::Display, R: MaxMin + fmt::Display>(val: I) -> EvalErr {
+        EvalErr::OutOfRange(format!(
+            "Integer conversion out of range: value was {}, but expected it to be in the range `{}..{}`",
+            val,
+            R::MAX,
+            R::MIN,
+        ))
     }
 }
 
@@ -64,7 +102,7 @@ impl<'a, 'b> EvalCtx<'a, 'b> {
     }
 
     pub fn all_parents(&self) -> &HashMap<RefKey<'a, Value>, &'a Value> {
-        &*self.parents
+        &self.parents
     }
 
     pub fn idx_of(&self, val: &'a Value) -> Option<Idx> {
@@ -104,20 +142,25 @@ impl<'a, 'b> EvalCtx<'a, 'b> {
     #[inline]
     pub fn apply_matched_ref<'c, T>(
         &'c self,
-        f: impl Fn(&'c Self, &'a Value) -> T,
-    ) -> Vec<&'a Value>
+        f: impl Fn(&'c Self, &'a Value) -> Result<T, EvalErr>,
+    ) -> Result<Vec<&'a Value>, EvalErr>
     where
         T: IntoIterator<Item = &'a Value>,
     {
-        self.cur_matched.iter().flat_map(|&i| f(self, i)).collect()
+        self.cur_matched.iter()
+            .try_fold(Vec::new(), |mut acc, val| {
+                acc.extend(f(self, val)?);
+                Ok(acc)
+            })
     }
 
     #[inline]
-    pub fn apply_matched<T>(&mut self, f: impl Fn(&Self, &'a Value) -> T)
+    pub fn apply_matched<T>(&mut self, f: impl Fn(&Self, &'a Value) -> T) -> Result<(), EvalErr>
     where
         T: IntoIterator<Item = &'a Value>,
     {
-        self.cur_matched = self.apply_matched_ref(f);
+        self.cur_matched = self.apply_matched_ref(|ctx, val| Ok(f(ctx, val)))?;
+        Ok(())
     }
 
     pub fn paths_matched(&self) -> Vec<IdxPath> {

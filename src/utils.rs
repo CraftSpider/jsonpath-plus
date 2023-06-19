@@ -3,6 +3,30 @@ use crate::Idx;
 use serde_json::Value;
 use std::iter::FusedIterator;
 
+pub trait MaxMin {
+    const MAX: Self;
+    const MIN: Self;
+}
+
+macro_rules! impl_maxmin {
+    ($($ty:ty),* $(,)?) => {
+        $(
+        impl_maxmin!(@ $ty);
+        )*
+    };
+    (@ $ty:ty) => {
+        impl MaxMin for $ty {
+            const MAX: Self = <$ty>::MAX;
+            const MIN: Self = <$ty>::MIN;
+        }
+    };
+}
+
+impl_maxmin!(
+    u8, u16, u32, u64, u128, usize,
+    i8, i16, i32, i64, i128, isize,
+);
+
 pub enum ValueIter<'a> {
     Array(std::slice::Iter<'a, Value>),
     Object(serde_json::map::Values<'a>),
